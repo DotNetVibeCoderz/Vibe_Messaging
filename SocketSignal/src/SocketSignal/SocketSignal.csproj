@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>SocketSignal</RootNamespace>
+    <AssemblyName>SocketSignal</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <!-- ============================ NuGet package ============================ -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>SocketSignal</PackageId>
+    <Title>SocketSignal</Title>
+    <Description>Bidirectional realtime RPC over raw WebSockets for .NET 10. Call server methods from a client and client methods from the server - with return values, groups, broadcast, timeouts, keepalive and auto-reconnect - over a small JSON protocol that a browser can speak in ten lines. Allocation-free in steady state. Client SDKs for Python, Go and Node.js included. Built by Gravicode Studios, led by Kang Fadhil.</Description>
+    <PackageTags>websocket;websockets;realtime;rpc;signalr-alternative;socket-io;broadcast;groups;pubsub;high-performance;low-allocation;dotnet10</PackageTags>
+    <PackageProjectUrl>https://github.com/DotNetVibeCoderz/Vibe_Messaging/tree/main/SocketSignal</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/DotNetVibeCoderz/Vibe_Messaging/tree/main/SocketSignal</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryBranch>main</RepositoryBranch>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes>v2.0.0 - Rewritten for throughput and memory: hand-written UTF-8 codec on Utf8JsonReader/Utf8JsonWriter (no intermediate strings), pooled per-connection buffers, zero-allocation method dispatch, typed Register/Call overloads, serialized sends, call timeouts and error propagation, keepalive, auto-reconnect, public server-to-client calls with return values, and connection statistics. Targets .NET 10.</PackageReleaseNotes>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="\" />
+    <None Include="../../assets/icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SocketSignal.Tests" />
+    <InternalsVisibleTo Include="SocketSignal.Benchmarks" />
+  </ItemGroup>
+
+</Project>

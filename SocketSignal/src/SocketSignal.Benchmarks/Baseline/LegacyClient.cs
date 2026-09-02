@@ -1,11 +1,13 @@
+// Recovered from git history: this is the v1 implementation, kept only so the benchmarks
+// can measure the rewrite against something real rather than against a claim.
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Collections.Concurrent;
 
-namespace SocketSignal;
+namespace SocketSignal.Benchmarks.Legacy;
 
-public class SocketSignalClient
+public class LegacySocketSignalClient
 {
     private readonly ClientWebSocket _ws = new();
     private readonly ConcurrentDictionary<string, Func<JsonElement[], Task<object?>>> _handlers = new();
@@ -32,7 +34,7 @@ public class SocketSignalClient
         var tcs = new TaskCompletionSource<JsonElement?>(TaskCreationOptions.RunContinuationsAsynchronously);
         _pendingCalls[callId] = tcs;
 
-        await SendAsync(new SignalMessage
+        await SendAsync(new LegacySignalMessage
         {
             Type = "invoke",
             Id = callId,
@@ -46,7 +48,7 @@ public class SocketSignalClient
 
     public Task SendAsync(string method, params object?[] args)
     {
-        return SendAsync(new SignalMessage
+        return SendAsync(new LegacySignalMessage
         {
             Type = "invoke",
             Id = Guid.NewGuid().ToString("N"),
@@ -56,7 +58,7 @@ public class SocketSignalClient
         });
     }
 
-    private async Task SendAsync(SignalMessage msg)
+    private async Task SendAsync(LegacySignalMessage msg)
     {
         var json = JsonSerializer.Serialize(msg, JsonSerializerOptions);
         var buffer = Encoding.UTF8.GetBytes(json);
@@ -87,7 +89,7 @@ public class SocketSignalClient
                         if (msg.ExpectReturn && msg.Id != null)
                         {
                             var resultElement = JsonSerializer.SerializeToElement(resultObj, JsonSerializerOptions);
-                            await SendAsync(new SignalMessage
+                            await SendAsync(new LegacySignalMessage
                             {
                                 Type = "result",
                                 Id = msg.Id,
@@ -99,7 +101,7 @@ public class SocketSignalClient
                     {
                         if (msg.ExpectReturn && msg.Id != null)
                         {
-                            await SendAsync(new SignalMessage
+                            await SendAsync(new LegacySignalMessage
                             {
                                 Type = "result",
                                 Id = msg.Id,
@@ -110,7 +112,7 @@ public class SocketSignalClient
                 }
                 else if (msg.ExpectReturn && msg.Id != null)
                 {
-                    await SendAsync(new SignalMessage
+                    await SendAsync(new LegacySignalMessage
                     {
                         Type = "result",
                         Id = msg.Id,
@@ -128,7 +130,7 @@ public class SocketSignalClient
         }
     }
 
-    private async Task<SignalMessage?> ReceiveAsync(CancellationToken ct = default)
+    private async Task<LegacySignalMessage?> ReceiveAsync(CancellationToken ct = default)
     {
         var buffer = new byte[4096];
         using var ms = new MemoryStream();
@@ -141,7 +143,7 @@ public class SocketSignalClient
         } while (!result.EndOfMessage);
 
         var json = Encoding.UTF8.GetString(ms.ToArray());
-        return JsonSerializer.Deserialize<SignalMessage>(json, JsonSerializerOptions);
+        return JsonSerializer.Deserialize<LegacySignalMessage>(json, JsonSerializerOptions);
     }
 
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()

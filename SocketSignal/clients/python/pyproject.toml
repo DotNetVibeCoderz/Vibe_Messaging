@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "socketsignal"
+version = "2.0.0"
+description = "Python client for SocketSignal - bidirectional realtime RPC over raw WebSockets."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Gravicode Studios" }]
+keywords = ["socketsignal", "websocket", "rpc", "realtime", "bidirectional"]
+dependencies = ["websockets>=12.0"]
+
+[project.urls]
+Homepage = "https://github.com/DotNetVibeCoderz/Vibe_Messaging/tree/main/SocketSignal"
+Repository = "https://github.com/DotNetVibeCoderz/Vibe_Messaging"
+
+[tool.setuptools.packages.find]
+include = ["socketsignal*"]

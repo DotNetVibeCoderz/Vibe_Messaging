@@ -1,0 +1,207 @@
+<!--
+  SocketSignal Sonar Console
+  Gravicode Studios, led by Kang Fadhil.
+
+  Two instruments, side by side, reading the same contacts: the scope answers "where is it", the
+  recorder answers "what has it been doing". Everything either one knows arrived over SocketSignal.
+-->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:SocketSignal.SonarDemo.Controls"
+        x:Class="SocketSignal.SonarDemo.MainWindow"
+        Title="SocketSignal Sonar Console"
+        Width="1360" Height="700"
+        MinWidth="1040" MinHeight="640"
+        Background="{StaticResource Abyss}"
+        FontFamily="{StaticResource ProseFace}">
+
+  <Window.Styles>
+
+    <!-- Panel labels: small, wide-tracked, uppercase. Silkscreen, not headings. -->
+    <Style Selector="TextBlock.eyebrow">
+      <Setter Property="FontFamily" Value="{StaticResource LabelFace}" />
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="LetterSpacing" Value="1.6" />
+      <Setter Property="Foreground" Value="{StaticResource ChalkFaint}" />
+    </Style>
+
+    <Style Selector="TextBlock.caption">
+      <Setter Property="FontFamily" Value="{StaticResource LabelFace}" />
+      <Setter Property="FontSize" Value="10.5" />
+      <Setter Property="LetterSpacing" Value="0.8" />
+      <Setter Property="Foreground" Value="{StaticResource ChalkDim}" />
+    </Style>
+
+    <!-- Every number on this console is monospaced so digits stay in column as they change. -->
+    <Style Selector="TextBlock.data">
+      <Setter Property="FontFamily" Value="{StaticResource DataFace}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{StaticResource Chalk}" />
+    </Style>
+
+    <Style Selector="TextBlock.dataDim">
+      <Setter Property="FontFamily" Value="{StaticResource DataFace}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{StaticResource ChalkDim}" />
+    </Style>
+
+    <Style Selector="Border.panel">
+      <Setter Property="Background" Value="{StaticResource Hull}" />
+      <Setter Property="BorderBrush" Value="{StaticResource Rule}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="2" />
+    </Style>
+
+    <Style Selector="Button.action">
+      <Setter Property="Background" Value="{StaticResource Raised}" />
+      <Setter Property="BorderBrush" Value="{StaticResource Rule}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="2" />
+      <Setter Property="Foreground" Value="{StaticResource Chalk}" />
+      <Setter Property="FontFamily" Value="{StaticResource LabelFace}" />
+      <Setter Property="FontSize" Value="10.5" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Padding" Value="14,7" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+
+    <!-- String content becomes a TextBlock inside the presenter; that is where tracking lands. -->
+    <Style Selector="Button.action TextBlock">
+      <Setter Property="LetterSpacing" Value="1.4" />
+    </Style>
+
+    <Style Selector="Button.action:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource RaisedHover}" />
+      <Setter Property="BorderBrush" Value="{StaticResource Return}" />
+    </Style>
+
+    <Style Selector="Button.action:disabled /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource RuleSoft}" />
+      <Setter Property="TextBlock.Foreground" Value="{StaticResource ChalkFaint}" />
+    </Style>
+
+    <Style Selector="Button.primary">
+      <Setter Property="Foreground" Value="{StaticResource Return}" />
+      <Setter Property="BorderBrush" Value="#2C5C55" />
+    </Style>
+
+  </Window.Styles>
+
+  <Grid RowDefinitions="52,*">
+
+    <!-- ================================ Status rail ================================ -->
+    <Border Grid.Row="0" Background="{StaticResource Hull}" BorderBrush="{StaticResource Rule}"
+            BorderThickness="0,0,0,1" Padding="18,0">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+
+        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="10">
+          <Ellipse x:Name="LinkLamp" Width="8" Height="8" Fill="{StaticResource ChalkFaint}" />
+          <TextBlock Text="SOCKETSIGNAL SONAR" Classes="eyebrow" FontSize="11.5"
+                     Foreground="{StaticResource Chalk}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <TextBlock Grid.Column="1" x:Name="LinkText" Classes="dataDim" Margin="20,0,0,0"
+                   VerticalAlignment="Center" Text="dialling array-01" />
+
+        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="26" VerticalAlignment="Center">
+          <StackPanel>
+            <TextBlock Text="CONSOLES" Classes="eyebrow" />
+            <TextBlock x:Name="ConsoleCount" Classes="data" Text="0" />
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Text="FRAME" Classes="eyebrow" />
+            <TextBlock x:Name="TickText" Classes="data" Text="0" />
+          </StackPanel>
+          <StackPanel>
+            <TextBlock Text="HELD" Classes="eyebrow" />
+            <TextBlock x:Name="HeldCount" Classes="data" Text="0" />
+          </StackPanel>
+          <Button x:Name="HoldButton" Classes="action" Content="HOLD" Click="OnHold" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- ================================ Console ================================ -->
+    <Grid Grid.Row="1" ColumnDefinitions="296,*,360" Margin="12">
+
+      <!-- ===== Contacts ===== -->
+      <Border Grid.Column="0" Classes="panel" Margin="0,0,7,0">
+        <Grid RowDefinitions="Auto,*,Auto,Auto">
+
+          <Border Grid.Row="0" Padding="14,11,14,9" BorderBrush="{StaticResource RuleSoft}"
+                  BorderThickness="0,0,0,1">
+            <TextBlock Text="CONTACTS HELD" Classes="eyebrow" />
+          </Border>
+
+          <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="ContactList" Margin="0,4" />
+          </ScrollViewer>
+
+          <!-- The classification report: the answer to the console's only request-response call. -->
+          <Border Grid.Row="2" x:Name="ReportPanel" Padding="14,11" IsVisible="False"
+                  BorderBrush="{StaticResource RuleSoft}" BorderThickness="0,1,0,1"
+                  Background="{StaticResource Raised}">
+            <StackPanel Spacing="5">
+              <TextBlock Text="ARRAY REPORT" Classes="eyebrow" />
+              <TextBlock x:Name="ReportHeadline" Classes="data" />
+              <TextBlock x:Name="ReportNote" Classes="caption" TextWrapping="Wrap" LineHeight="15" />
+            </StackPanel>
+          </Border>
+
+          <StackPanel Grid.Row="3" Margin="14" Spacing="8">
+            <Button x:Name="ClassifyButton" Classes="action primary" Content="CLASSIFY CONTACT"
+                    HorizontalAlignment="Stretch" IsEnabled="False" Click="OnClassify" />
+            <Button x:Name="PingButton" Classes="action" Content="ACTIVE PING"
+                    HorizontalAlignment="Stretch" Click="OnActivePing" />
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- ===== Scope + telemetry ===== -->
+      <Grid Grid.Column="1" RowDefinitions="*,74" Margin="7,0">
+
+        <Border Grid.Row="0" Classes="panel">
+          <Grid RowDefinitions="Auto,*">
+            <Grid Grid.Row="0" Margin="14,11,14,9" ColumnDefinitions="Auto,*,Auto">
+              <TextBlock Grid.Column="0" Text="PLAN POSITION INDICATOR" Classes="eyebrow" />
+              <TextBlock Grid.Column="2" x:Name="BeamText" Classes="dataDim" Text="000.0" />
+            </Grid>
+            <controls:PpiScope Grid.Row="1" x:Name="Scope" Margin="6,0,6,10" />
+          </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Classes="panel" Margin="0,10,0,0">
+          <Grid ColumnDefinitions="*,Auto" Margin="14,9">
+            <StackPanel Grid.Column="0" Spacing="4">
+              <TextBlock Text="TRANSPORT" Classes="eyebrow" />
+              <TextBlock x:Name="TransportText" Classes="dataDim" Text="waiting for the array" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="18" VerticalAlignment="Center">
+              <StackPanel>
+                <TextBlock Text="FRAMES/S" Classes="eyebrow" />
+                <TextBlock x:Name="RateText" Classes="data" Text="0.0" />
+              </StackPanel>
+              <controls:Sparkline x:Name="RatePlot" Width="150" Height="30" VerticalAlignment="Center" />
+            </StackPanel>
+          </Grid>
+        </Border>
+      </Grid>
+
+      <!-- ===== Bearing-time recorder ===== -->
+      <Border Grid.Column="2" Classes="panel" Margin="7,0,0,0">
+        <Grid RowDefinitions="Auto,*,Auto">
+          <Grid Grid.Row="0" Margin="14,11,14,9" ColumnDefinitions="Auto,*,Auto">
+            <TextBlock Grid.Column="0" Text="BEARING - TIME RECORD" Classes="eyebrow" />
+            <TextBlock Grid.Column="2" Text="120 s" Classes="eyebrow" />
+          </Grid>
+          <controls:BearingWaterfall Grid.Row="1" x:Name="Waterfall" Margin="12,0,12,6" />
+          <TextBlock Grid.Row="2" Classes="caption" Margin="14,0,14,12" TextWrapping="Wrap" LineHeight="15"
+                     Foreground="{StaticResource ChalkFaint}"
+                     Text="A trace running straight down is a contact holding its bearing." />
+        </Grid>
+      </Border>
+
+    </Grid>
+  </Grid>
+</Window>
