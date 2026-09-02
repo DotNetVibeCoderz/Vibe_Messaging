@@ -15,7 +15,7 @@ namespace BlackHole.Transport;
 /// them, and <see cref="MaxConnections"/> gives the host a hard ceiling instead of accepting until
 /// the process runs out of handles.
 /// </remarks>
-public sealed class TcpListenerHost : IAsyncDisposable
+public sealed class TcpListenerHost : IListenerHost
 {
     private readonly Socket _listener;
     private readonly TransportOptions _options;
@@ -54,6 +54,16 @@ public sealed class TcpListenerHost : IAsyncDisposable
 
     /// <summary>Raised after a connection ends, with the failure if there was one.</summary>
     public event Action<TcpTransport, Exception?>? ClientDisconnected;
+
+    /// <inheritdoc />
+    public event Action<ITransport>? TransportConnected;
+
+    /// <inheritdoc />
+    public event Action<ITransport, Exception?>? TransportDisconnected;
+
+    /// <inheritdoc />
+    /// <remarks>The bound endpoint as text; read it after Start to resolve port 0.</remarks>
+    public string Endpoint => EndPoint.ToString();
 
     /// <summary>Starts listening. Returns as soon as the accept loop is running.</summary>
     public void Start(int backlog = 512)
@@ -102,6 +112,7 @@ public sealed class TcpListenerHost : IAsyncDisposable
             try
             {
                 ClientConnected?.Invoke(transport);
+                TransportConnected?.Invoke(transport);
                 transport.Start();
             }
             catch (Exception ex)
@@ -114,8 +125,11 @@ public sealed class TcpListenerHost : IAsyncDisposable
 
     private void OnTransportClosed(ITransport transport, Exception? failure)
     {
-        if (_connections.TryRemove(transport.Id, out TcpTransport? removed))
-            ClientDisconnected?.Invoke(removed, failure);
+        if (!_connections.TryRemove(transport.Id, out TcpTransport? removed))
+            return;
+
+        ClientDisconnected?.Invoke(removed, failure);
+        TransportDisconnected?.Invoke(removed, failure);
     }
 
     /// <summary>Broadcasts one message to every live connection.</summary>

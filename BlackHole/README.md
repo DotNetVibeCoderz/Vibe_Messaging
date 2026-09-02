@@ -58,6 +58,7 @@ await client.PubSub.PublishAsync("sensor/tank-3/temperature", "28.4");
 | **Streaming** | Send a body of any size in chunks, with a descriptor, progress reporting, and an optional sink so a large upload never has to sit in memory. |
 | **Batching** | Pack many small messages into one frame and one socket write. Flushes on count, size, or a delay — whichever comes first. |
 | **Keepalive** | Ping/pong answered by the transport, never surfaced to your handlers, with a round-trip measurement per connection. |
+| **Four transports** | TCP, Unix domain sockets, named pipes and shared memory — same protocol, same API, one line to switch. |
 
 ### Measured on this machine
 
@@ -70,6 +71,7 @@ await client.PubSub.PublishAsync("sensor/tank-3/temperature", "28.4");
 | Pub/Sub fan-out | **69,700 deliveries/sec** across 50 subscribers |
 | Batched publishes | **2.3 M messages/sec** — 22× the one-send-per-message path |
 | Streaming | **520 MiB/sec** at a 16 KiB chunk size |
+| Shared-memory RPC | **3.2 us** p50 — 18x faster than loopback TCP |
 | Encode a frame | **41 ns**, **0 bytes allocated** |
 | Decode a frame | **105 ns**, **0 bytes allocated** |
 
@@ -82,6 +84,22 @@ dotnet run --project src/BlackHole.Demo          # every pattern, end to end
 dotnet run --project src/BlackHole.IoTGateway    # the Avalonia gateway panel
 dotnet test tests/BlackHole.Tests                # 42 tests
 ```
+
+### Same-machine transports
+
+When both processes are on one machine, TCP is not the only option — and not the fastest one:
+
+```csharp
+var listener = new SharedMemoryListenerHost("blackhole-ipc", slots: 8);   // 3.2 us round trip
+var listener = new UnixSocketListenerHost("/tmp/blackhole.sock");         // 29 us, off the network
+var listener = new NamedPipeListenerHost("blackhole-gateway");            // 37 us, ACL security
+
+await using var server = new BlackHoleServer(listener);
+server.Start();
+```
+
+Shared memory is **18x faster than loopback TCP** at 272,000 RPC calls/sec. Everything above the
+transport is unchanged. See [docs/transports.md](docs/transports.md) for the trade-offs.
 
 ### Client SDKs
 
@@ -126,6 +144,7 @@ calls RPC methods back down the same connection the device dialled out on, and *
 | [Benchmarks](docs/benchmarks.md) | Full results and how to reproduce them |
 | [IoT Gateway](docs/iot-gateway.md) | The simulator, and what it demonstrates |
 | [Migrating from v2](docs/migration-v2.md) | What changed and why |
+| [Transports](docs/transports.md) | TCP, Unix sockets, named pipes, shared memory |
 | [Client SDKs](clients/) | Python, Go and Node.js clients |
 
 Bahasa Indonesia: [docs/id/](docs/id/).
@@ -185,6 +204,7 @@ await client.PubSub.PublishAsync("sensor/tank-3/temperature", "28.4");
 | Sebaran Pub/Sub | **69.700 pengiriman/detik** ke 50 pelanggan |
 | Publish ter-batch | **2,3 juta pesan/detik** — 22× lebih cepat daripada kirim satu per satu |
 | Streaming | **520 MiB/detik** dengan potongan 16 KiB |
+| RPC shared memory | **3,2 us** p50 — 18× lebih cepat daripada TCP loopback |
 | Menyusun satu frame | **41 ns**, **0 byte dialokasikan** |
 | Membaca satu frame | **105 ns**, **0 byte dialokasikan** |
 
@@ -197,6 +217,22 @@ dotnet run --project src/BlackHole.Demo          # semua pola, dari ujung ke uju
 dotnet run --project src/BlackHole.IoTGateway    # panel gateway Avalonia
 dotnet test tests/BlackHole.Tests                # 42 tes
 ```
+
+### Transport satu mesin
+
+Kalau kedua proses ada di satu mesin, TCP bukan satu-satunya pilihan — dan bukan yang tercepat:
+
+```csharp
+var listener = new SharedMemoryListenerHost("blackhole-ipc", slots: 8);   // bolak-balik 3,2 us
+var listener = new UnixSocketListenerHost("/tmp/blackhole.sock");         // 29 us, di luar jaringan
+var listener = new NamedPipeListenerHost("blackhole-gateway");            // 37 us, keamanan ACL
+
+await using var server = new BlackHoleServer(listener);
+server.Start();
+```
+
+Shared memory **18× lebih cepat daripada TCP loopback**, pada 272.000 panggilan RPC/detik. Semua
+lapisan di atas transport tidak berubah. Lihat [docs/id/transports.md](docs/id/transports.md).
 
 ### SDK Klien
 

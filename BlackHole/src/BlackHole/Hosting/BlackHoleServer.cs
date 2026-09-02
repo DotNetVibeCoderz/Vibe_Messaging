@@ -51,25 +51,43 @@ public sealed class BlackHoleConnection
 /// </remarks>
 public sealed class BlackHoleServer : IAsyncDisposable
 {
-    private readonly TcpListenerHost _listener;
+    private readonly IListenerHost _listener;
     private readonly TransportOptions _options;
+    private readonly bool _ownsListener;
     private readonly ConcurrentDictionary<string, BlackHoleConnection> _connections = new();
 
-    /// <summary>Listens on every interface. Use the endpoint overload to restrict that.</summary>
+    /// <summary>Listens on every TCP interface. Use an endpoint overload to restrict that.</summary>
     public BlackHoleServer(int port, TransportOptions? options = null)
         : this(new System.Net.IPEndPoint(System.Net.IPAddress.Any, port), options) { }
 
     /// <summary>
-    /// Listens on one endpoint. Pass <see cref="System.Net.IPAddress.Loopback"/> for a server that
-    /// only ever talks to this machine - it keeps the port off the network and, on Windows, avoids
-    /// the firewall prompt that binding to Any triggers.
+    /// Listens on one TCP endpoint. Pass <see cref="System.Net.IPAddress.Loopback"/> for a server
+    /// that only ever talks to this machine - it keeps the port off the network and, on Windows,
+    /// avoids the firewall prompt that binding to Any triggers.
     /// </summary>
     public BlackHoleServer(System.Net.IPEndPoint endPoint, TransportOptions? options = null)
+        : this(new TcpListenerHost(endPoint, options ?? new TransportOptions()), options, ownsListener: true) { }
+
+    /// <summary>
+    /// Serves over any listener: TCP, a Unix domain socket, a named pipe, or shared memory.
+    /// </summary>
+    /// <remarks>
+    /// Everything above the transport is identical whichever you pick - the same RPC methods, the
+    /// same broker, the same streams - because a listener's only job is to produce connections.
+    /// Choosing a same-machine transport is a deployment decision, not an application one.
+    /// </remarks>
+    /// <param name="listener">The listener to serve. Disposed with this server unless you say otherwise.</param>
+    /// <param name="options">Transport settings, for the parts of the server that need them.</param>
+    /// <param name="ownsListener">False to keep the listener alive after this server is disposed.</param>
+    public BlackHoleServer(IListenerHost listener, TransportOptions? options = null, bool ownsListener = true)
     {
+        ArgumentNullException.ThrowIfNull(listener);
+
         _options = options ?? new TransportOptions();
-        _listener = new TcpListenerHost(endPoint, _options);
-        _listener.ClientConnected += OnClientConnected;
-        _listener.ClientDisconnected += OnClientDisconnected;
+        _listener = listener;
+        _ownsListener = ownsListener;
+        _listener.TransportConnected += OnClientConnected;
+        _listener.TransportDisconnected += OnClientDisconnected;
     }
 
     /// <summary>Methods every client can call.</summary>
@@ -78,8 +96,19 @@ public sealed class BlackHoleServer : IAsyncDisposable
     /// <summary>Topic broker shared by every client.</summary>
     public PubSubBroker PubSub { get; } = new();
 
-    /// <summary>Where the listener is bound; read it after construction to resolve port 0.</summary>
-    public System.Net.IPEndPoint EndPoint => _listener.EndPoint;
+    /// <summary>
+    /// Where the listener is bound, as text: a TCP endpoint, a socket path, a pipe or segment name.
+    /// </summary>
+    public string Endpoint => _listener.Endpoint;
+
+    /// <summary>
+    /// Where the TCP listener is bound; read it after construction to resolve port 0.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">This server is not serving TCP.</exception>
+    public System.Net.IPEndPoint EndPoint => _listener is TcpListenerHost tcp
+        ? tcp.EndPoint
+        : throw new InvalidOperationException(
+            $"This server listens on {_listener.Endpoint}, which has no IP endpoint. Use Endpoint instead.");
 
     /// <summary>Live connections.</summary>
     public IReadOnlyCollection<BlackHoleConnection> Connections => _connections.Values.ToArray();
@@ -110,11 +139,11 @@ public sealed class BlackHoleServer : IAsyncDisposable
     public ValueTask PublishAsync(string topic, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default) =>
         PubSub.PublishAsync(topic, payload, publisher: null, cancellationToken);
 
-    private void OnClientConnected(TcpTransport transport)
+    private void OnClientConnected(ITransport transport)
     {
         var router = new MessageRouter();
         var streams = new StreamReceiver();
-        var batches = new BatchReceiver(router.Dispatch, transport.HeaderCache);
+        var batches = new BatchReceiver(router.Dispatch, HeaderCacheOf(transport));
 
         router.HandlerFaulted += (message, ex) => HandlerFaulted?.Invoke(message, ex);
         Rpc.AttachTo(router);
@@ -132,7 +161,7 @@ public sealed class BlackHoleServer : IAsyncDisposable
         ClientConnected?.Invoke(connection);
     }
 
-    private void OnClientDisconnected(TcpTransport transport, Exception? failure)
+    private void OnClientDisconnected(ITransport transport, Exception? failure)
     {
         PubSub.RemoveSubscriber(transport);
         if (_connections.TryRemove(transport.Id, out BlackHoleConnection? connection))
@@ -142,9 +171,18 @@ public sealed class BlackHoleServer : IAsyncDisposable
         }
     }
 
+    /// <summary>The header cache a transport exposes, or null to let the receiver make its own.</summary>
+    private static Protocol.HeaderCache? HeaderCacheOf(ITransport transport) => transport switch
+    {
+        StreamTransport stream => stream.HeaderCache,
+        TcpTransport tcp => tcp.HeaderCache,
+        _ => null,
+    };
+
     public async ValueTask DisposeAsync()
     {
-        await _listener.DisposeAsync().ConfigureAwait(false);
+        if (_ownsListener)
+            await _listener.DisposeAsync().ConfigureAwait(false);
         foreach (BlackHoleConnection connection in _connections.Values)
             connection.Streams.Dispose();
         _connections.Clear();

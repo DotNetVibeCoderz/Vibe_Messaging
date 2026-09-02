@@ -59,8 +59,12 @@ Four layers, each knowing only the one below. Read `docs/architecture.md` before
 message). `FrameCodec` is the *only* place the wire format is written or parsed. `HeaderCache`
 returns the same `string` instance for repeated headers.
 
-**`Transport/`** — one `TcpTransport` for both dialling and accepting sides. Read side is
-`System.IO.Pipelines`; a fully buffered frame parses with **zero allocations**.
+**`Transport/`** — `StreamTransport` is the frame loop over any duplex `Stream`, and every
+transport is built on it: TCP, Unix domain sockets, named pipes, and a shared-memory ring dressed as
+a stream. Read side is `System.IO.Pipelines`; a fully buffered frame parses with **zero
+allocations**. `TcpTransport` predates it and stays for compatibility — new transports use
+`StreamTransport`. Listeners implement `IListenerHost`, which is what lets `BlackHoleServer` serve
+any of them.
 
 **`Hosting/MessageRouter`** — routes by type byte via array index, copy-on-write registration.
 
@@ -99,7 +103,29 @@ wildcard covering its own devices makes the broker fan readings back to all of t
 blocks writing to peers that are blocked writing, and the whole thing deadlocks. This actually
 happened in the IoT gateway.
 
+## Shared memory, and two traps it exposed
+
+Both cost real debugging time and are documented in `docs/transports.md`.
+
+**`SpinWait.SpinOnce()` sleeps.** It escalates to `Thread.Sleep(1)` after ~20 iterations, which on
+Windows is a full 15.6 ms timer tick — 50 iterations measured **446 ms**. That single default made
+shared-memory RPC 32 ms per round trip, 500x slower than the loopback TCP it was meant to beat.
+Always pass `sleep1Threshold: -1` in a spin loop.
+
+**A spinning read loop must not run on a thread-pool thread.** It holds the thread, and with both
+ends of a connection doing it the pool starves. Shared-memory transports pass
+`dedicatedReceiveThread: true` to `StreamTransport` and keep their waits synchronous so no
+continuation hops back to the pool.
+
+Waiting is three phases — spin, yield, sleep — and the defaults are tuned so an active link never
+reaches the sleep phase. The yield window is time-based (`YieldDuration`), not a count: iteration
+counts and elapsed time are not related closely enough to substitute.
+
 ## Testing
+
+`tests/BlackHole.Tests/TransportTests.cs` runs one contract suite over all four transports, so a
+behaviour that works on TCP but not shared memory fails a test rather than a deployment. Add new
+transport-level behaviour there, not to a single transport's tests.
 
 `tests/BlackHole.Tests/EndToEndTests.cs` uses **real loopback sockets**, not fakes — that is the
 point, since the v2 bugs were all in the seams. Bind port 0 and read `server.EndPoint.Port`. Pass

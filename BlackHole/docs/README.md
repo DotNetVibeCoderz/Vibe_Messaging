@@ -9,6 +9,7 @@
 | [Getting started](getting-started.md) | Install, first server, first client |
 | [Architecture](architecture.md) | How the layers fit together, and why |
 | [Protocol](protocol.md) | The wire format, byte by byte |
+| [Transports](transports.md) | TCP, Unix sockets, named pipes, shared memory, and when to use each |
 | [Patterns](patterns.md) | RPC, Pub/Sub, Streaming, Batching in depth |
 | [Performance](performance.md) | Where the allocations went, and how to keep them gone |
 | [Benchmarks](benchmarks.md) | Full results and how to reproduce them |
@@ -23,6 +24,7 @@
 | [Panduan awal](id/getting-started.md) | Instalasi, server pertama, client pertama |
 | [Arsitektur](id/architecture.md) | Bagaimana lapisan-lapisannya menyatu, dan mengapa |
 | [Protokol](id/protocol.md) | Format kabelnya, bita per bita |
+| [Transport](id/transports.md) | TCP, Unix socket, named pipe, shared memory, dan kapan memakainya |
 | [Pola](id/patterns.md) | RPC, Pub/Sub, Streaming, Batching secara mendalam |
 | [Performa](id/performance.md) | Ke mana alokasinya pergi, dan cara menjaganya tetap nol |
 | [IoT Gateway](id/iot-gateway.md) | Simulator Avalonia, dan apa yang ditunjukkannya |

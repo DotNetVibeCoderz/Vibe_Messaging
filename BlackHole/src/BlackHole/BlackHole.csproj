@@ -3,7 +3,9 @@
   <PropertyGroup>
     <RootNamespace>BlackHole</RootNamespace>
     <AssemblyName>BlackHole</AssemblyName>
-    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <!-- The shared-memory ring maps a segment and indexes it directly; that is the whole point
+         of shared memory, and it is confined to Transport/SharedMemoryRing.cs. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- Missing XML comment on public member: the codebase documents the surface that matters. -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>

@@ -17,9 +17,9 @@ namespace BlackHole.Hosting;
 /// </remarks>
 public sealed class BlackHoleClient : IAsyncDisposable
 {
-    private readonly TcpTransport _transport;
+    private readonly ITransport _transport;
 
-    private BlackHoleClient(TcpTransport transport, Action<BlackHoleClient>? configure)
+    private BlackHoleClient(ITransport transport, Action<BlackHoleClient>? configure)
     {
         _transport = transport;
         Router = new MessageRouter();
@@ -30,7 +30,7 @@ public sealed class BlackHoleClient : IAsyncDisposable
         OutgoingStreams = new StreamSender(transport);
         IncomingStreams = new StreamReceiver().AttachTo(Router);
         Batch = new BatchSender(transport).Start();
-        Batches = new BatchReceiver(Router.Dispatch, transport.HeaderCache).AttachTo(Router);
+        Batches = new BatchReceiver(Router.Dispatch, HeaderCacheOf(transport)).AttachTo(Router);
 
         Router.HandlerFaulted += (message, ex) => HandlerFaulted?.Invoke(message, ex);
         transport.Closed += (_, failure) => Closed?.Invoke(failure);
@@ -43,7 +43,103 @@ public sealed class BlackHoleClient : IAsyncDisposable
 
         // Everything is wired, so it is now safe to let messages in. The transport was handed over
         // unstarted precisely so nothing could arrive before this point.
-        transport.Start();
+        Start(transport);
+    }
+
+    /// <summary>The header cache a transport exposes, or null to let the receiver make its own.</summary>
+    private static Protocol.HeaderCache? HeaderCacheOf(ITransport transport) => transport switch
+    {
+        StreamTransport stream => stream.HeaderCache,
+        TcpTransport tcp => tcp.HeaderCache,
+        _ => null,
+    };
+
+    /// <summary>Starts a transport that was handed over unstarted.</summary>
+    private static void Start(ITransport transport)
+    {
+        switch (transport)
+        {
+            case StreamTransport stream: stream.Start(); break;
+            case TcpTransport tcp: tcp.Start(); break;
+            // A transport from somewhere else is assumed to be reading already; there is no
+            // interface member to call, and starting twice would be the only alternative.
+        }
+    }
+
+    /// <summary>
+    /// Wraps a transport this client did not create - a Unix socket, a named pipe, shared memory,
+    /// or anything else implementing <see cref="ITransport"/>.
+    /// </summary>
+    /// <remarks>
+    /// Hand it over unstarted (every built-in factory takes <c>startReceiving: false</c>) so
+    /// <paramref name="configure"/> can register handlers before the first frame is delivered. This
+    /// method starts it.
+    /// </remarks>
+    /// <param name="transport">A connected transport, ideally not yet receiving.</param>
+    /// <param name="configure">Runs before any message is delivered.</param>
+    public static BlackHoleClient Over(ITransport transport, Action<BlackHoleClient>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(transport);
+        return new BlackHoleClient(transport, configure);
+    }
+
+    /// <summary>Connects over a Unix domain socket.</summary>
+    /// <param name="path">Filesystem path of the socket.</param>
+    /// <param name="options">Transport settings.</param>
+    /// <param name="cancellationToken">Cancels the connect attempt.</param>
+    /// <param name="configure">Runs before any message is delivered.</param>
+    public static async Task<BlackHoleClient> ConnectUnixAsync(
+        string path,
+        TransportOptions? options = null,
+        CancellationToken cancellationToken = default,
+        Action<BlackHoleClient>? configure = null)
+    {
+        StreamTransport transport = await UnixSocketTransport
+            .ConnectAsync(path, options, cancellationToken, startReceiving: false)
+            .ConfigureAwait(false);
+        return new BlackHoleClient(transport, configure);
+    }
+
+    /// <summary>Connects over a named pipe.</summary>
+    /// <param name="pipeName">Pipe name, without the machine-local pipe prefix.</param>
+    /// <param name="options">Transport settings.</param>
+    /// <param name="timeout">How long to wait for the pipe to exist. Default 10 seconds.</param>
+    /// <param name="cancellationToken">Cancels the connect attempt.</param>
+    /// <param name="configure">Runs before any message is delivered.</param>
+    public static async Task<BlackHoleClient> ConnectPipeAsync(
+        string pipeName,
+        TransportOptions? options = null,
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default,
+        Action<BlackHoleClient>? configure = null)
+    {
+        StreamTransport transport = await NamedPipeTransport
+            .ConnectAsync(pipeName, options, timeout, cancellationToken, startReceiving: false)
+            .ConfigureAwait(false);
+        return new BlackHoleClient(transport, configure);
+    }
+
+    /// <summary>Connects over shared memory, claiming a free slot from a listener's pool.</summary>
+    /// <param name="name">The listener's base segment name.</param>
+    /// <param name="slots">Pool size the listener was created with. Default 8.</param>
+    /// <param name="timeout">How long to keep retrying the pool. Default 10 seconds.</param>
+    /// <param name="options">Transport settings.</param>
+    /// <param name="shared">Ring capacity and waiting strategy.</param>
+    /// <param name="cancellationToken">Cancels the attempt.</param>
+    /// <param name="configure">Runs before any message is delivered.</param>
+    public static async Task<BlackHoleClient> ConnectSharedMemoryAsync(
+        string name,
+        int slots = 8,
+        TimeSpan? timeout = null,
+        TransportOptions? options = null,
+        SharedMemoryOptions? shared = null,
+        CancellationToken cancellationToken = default,
+        Action<BlackHoleClient>? configure = null)
+    {
+        StreamTransport transport = await SharedMemoryTransport
+            .ConnectAsync(name, slots, timeout, options, shared, cancellationToken, startReceiving: false)
+            .ConfigureAwait(false);
+        return new BlackHoleClient(transport, configure);
     }
 
     /// <summary>Connects and returns a ready client.</summary>
@@ -122,6 +218,14 @@ public sealed class BlackHoleClient : IAsyncDisposable
 
     /// <summary>Counters for this connection.</summary>
     public TransportStatistics Statistics => _transport.Statistics;
+
+    /// <summary>Which transport this client is running over: "tcp", "uds", "pipe" or "shm".</summary>
+    public string TransportKind => _transport switch
+    {
+        StreamTransport stream => stream.Kind,
+        TcpTransport => "tcp",
+        _ => "custom",
+    };
 
     /// <summary>False once the connection ends.</summary>
     public bool IsConnected => _transport.IsConnected;

@@ -14,6 +14,17 @@ internal static class Program
     /// </summary>
     private static async Task Main(string[] args)
     {
+        if (args.Contains("--transports"))
+        {
+            // Compares TCP, Unix sockets, named pipes and shared memory on one workload.
+            string[] only = args
+                .SkipWhile(a => a != "--transports").Skip(1)
+                .TakeWhile(a => !a.StartsWith('-'))
+                .ToArray();
+            await TransportComparison.RunAsync(only);
+            return;
+        }
+
         if (args.Contains("--quick"))
         {
             // Anything after --quick that is not a flag names a stage to run on its own.

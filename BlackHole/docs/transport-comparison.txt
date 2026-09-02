@@ -1,0 +1,43 @@
+==========================================================
+  BLACKHOLE MESSAGING - TRANSPORT COMPARISON
+==========================================================
+  runtime      : 10.0.11
+  os           : Microsoft Windows NT 10.0.26200.0
+  processors   : 8
+  server GC    : True
+  measured     : 2026-09-03 05:46
+  note         : both ends run in one process, on one machine
+
+--- RPC latency, sequential round trips, 30-byte payload -
+  transport        p50        p90        p99        mean     calls/sec
+  --------------   --------   --------   --------   --------   ----------
+  TCP loopback       59.5us     87.3us    119.3us     64.6us       15,448
+  Unix socket        29.0us     53.2us     75.0us     35.7us       27,985
+  Named pipe         37.1us     49.5us     76.7us     39.2us       25,479
+  Shared memory       3.2us      4.1us      9.0us      3.6us      271,848
+
+--- Publish throughput, 100,000 small messages -----------
+  transport        one-by-one         batched (256)      speed-up
+  --------------   ----------------   ----------------   --------
+  TCP loopback        100,638 msg/s    2,022,273 msg/s     20.1x
+  Unix socket         475,849 msg/s    2,357,145 msg/s      5.0x
+  Named pipe           74,617 msg/s    2,058,854 msg/s     27.6x
+  Shared memory     2,106,376 msg/s    1,752,563 msg/s      0.8x
+
+--- Streaming, 32 MiB at a 16 KiB chunk size -------------
+  transport        duration     throughput
+  --------------   ----------   -------------
+  TCP loopback           65 ms          491 MiB/s
+  Unix socket            32 ms        1,007 MiB/s
+  Named pipe             91 ms          351 MiB/s
+  Shared memory         230 ms          139 MiB/s
+
+--- CPU used by one idle connection, over 2 seconds ------
+  transport        cpu time     % of one core
+  --------------   ----------   -------------
+  TCP loopback          78 ms           3.9 %
+  Unix socket           31 ms           1.6 %
+  Named pipe            62 ms           3.1 %
+  Shared memory         47 ms           2.3 %
+
+Gravicode Studios - led by Kang Fadhil
