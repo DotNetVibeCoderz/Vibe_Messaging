@@ -1,0 +1,9 @@
+# SocketSignal
+artifacts/
+BenchmarkDotNet.Artifacts/
+__pycache__/
+*.py[cod]
+node_modules/
+
+# Claude Code local skills/config, kept out of the repo like the sibling projects
+.claude/

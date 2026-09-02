@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SocketSignal.Benchmarks/SocketSignal.Benchmarks.csproj" />
+    <Project Path="src/SocketSignal.Demo/SocketSignal.Demo.csproj" />
+    <Project Path="src/SocketSignal.SonarDemo/SocketSignal.SonarDemo.csproj" />
+    <Project Path="src/SocketSignal/SocketSignal.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SocketSignal.Tests/SocketSignal.Tests.csproj" />
+  </Folder>
+</Solution>

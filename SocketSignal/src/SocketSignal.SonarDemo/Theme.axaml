@@ -1,0 +1,57 @@
+<!--
+  SocketSignal Sonar Console - visual language
+  Gravicode Studios, led by Kang Fadhil.
+
+  Grounded in a real sonar shack rather than the film version. The ground is wet chart paper seen
+  under night lighting - deep blue-green, never black - and the returns are the pale aquamarine of
+  a phosphor that has been looked at through glass for forty years, not acid green.
+
+  Colour carries meaning and nothing else:
+    Return       the beam and its echoes
+    Surface      a contact on the surface       (amber)
+    Submerged    a contact below the layer      (pale blue)
+    Unidentified not yet classified             (magenta, the Admiralty caution hue)
+    Alarm        inside the close-quarters ring (the only saturated red on screen)
+-->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- ============================== Water and steel ============================== -->
+  <Color x:Key="AbyssColor">#08131A</Color>
+  <SolidColorBrush x:Key="Abyss" Color="#08131A" />
+  <SolidColorBrush x:Key="Hull" Color="#0E1E27" />
+  <SolidColorBrush x:Key="Raised" Color="#142933" />
+  <SolidColorBrush x:Key="RaisedHover" Color="#1B3543" />
+  <SolidColorBrush x:Key="Rule" Color="#1F3A47" />
+  <SolidColorBrush x:Key="RuleSoft" Color="#162C37" />
+
+  <!-- ============================== Lettering ============================== -->
+  <SolidColorBrush x:Key="Chalk" Color="#DCE8E6" />
+  <SolidColorBrush x:Key="ChalkDim" Color="#7C99A2" />
+  <SolidColorBrush x:Key="ChalkFaint" Color="#4C6672" />
+
+  <!-- ============================== Returns ============================== -->
+  <Color x:Key="ReturnColor">#7FD4C1</Color>
+  <SolidColorBrush x:Key="Return" Color="#7FD4C1" />
+  <SolidColorBrush x:Key="ReturnDim" Color="#3E7A6E" />
+
+  <!-- ============================== Classification ============================== -->
+  <Color x:Key="SurfaceColor">#F2A65A</Color>
+  <Color x:Key="SubmergedColor">#8FB8FF</Color>
+  <Color x:Key="UnidentifiedColor">#D96FA8</Color>
+  <Color x:Key="AlarmColor">#FF5C4D</Color>
+  <SolidColorBrush x:Key="Surface" Color="#F2A65A" />
+  <SolidColorBrush x:Key="Submerged" Color="#8FB8FF" />
+  <SolidColorBrush x:Key="Unidentified" Color="#D96FA8" />
+  <SolidColorBrush x:Key="Alarm" Color="#FF5C4D" />
+
+  <!-- ============================== Typography ==============================
+       Labels are set in the narrow display face at small sizes with wide tracking, the way panel
+       silkscreen is lettered. Every number on this console is set in a monospace so that a bearing
+       does not change width as it changes value - a jittering readout is unreadable at a glance.
+  -->
+  <FontFamily x:Key="LabelFace">Segoe UI Variable Display, Aptos Narrow, Segoe UI, sans-serif</FontFamily>
+  <FontFamily x:Key="DataFace">Cascadia Mono, Consolas, monospace</FontFamily>
+  <FontFamily x:Key="ProseFace">Segoe UI Variable Text, Segoe UI, sans-serif</FontFamily>
+
+</ResourceDictionary>

@@ -1,0 +1,25 @@
+{
+  "name": "socketsignal",
+  "version": "2.0.0",
+  "description": "Node.js client for SocketSignal - bidirectional realtime RPC over raw WebSockets. Built by Gravicode Studios, led by Kang Fadhil.",
+  "type": "module",
+  "main": "src/index.mjs",
+  "exports": {
+    ".": "./src/index.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "example": "node example.mjs"
+  },
+  "keywords": ["socketsignal", "websocket", "rpc", "realtime", "bidirectional"],
+  "author": "Gravicode Studios",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DotNetVibeCoderz/Vibe_Messaging.git",
+    "directory": "SocketSignal/clients/nodejs"
+  },
+  "homepage": "https://github.com/DotNetVibeCoderz/Vibe_Messaging/tree/main/SocketSignal"
+}

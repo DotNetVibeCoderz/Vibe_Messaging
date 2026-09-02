@@ -1,28 +1,30 @@
+// Recovered from git history: this is the v1 implementation, kept only so the benchmarks
+// can measure the rewrite against something real rather than against a claim.
 using System.Net;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Collections.Concurrent;
 
-namespace SocketSignal;
+namespace SocketSignal.Benchmarks.Legacy;
 
-public class SocketSignalServer
+public class LegacySocketSignalServer
 {
     private readonly HttpListener _listener;
-    private readonly ConcurrentDictionary<string, ClientConnection> _clients = new();
+    private readonly ConcurrentDictionary<string, LegacyClientConnection> _clients = new();
     private readonly ConcurrentDictionary<string, HashSet<string>> _groups = new();
-    private readonly ConcurrentDictionary<string, Func<ClientConnection, JsonElement[], Task<object?>>> _handlers = new();
+    private readonly ConcurrentDictionary<string, Func<LegacyClientConnection, JsonElement[], Task<object?>>> _handlers = new();
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonElement?>> _pendingCalls = new();
 
-    public SocketSignalServer(string urlPrefix)
+    public LegacySocketSignalServer(string urlPrefix)
     {
         _listener = new HttpListener();
         _listener.Prefixes.Add(urlPrefix);
     }
 
-    public IReadOnlyCollection<ClientConnection> Clients => _clients.Values.ToList();
+    public IReadOnlyCollection<LegacyClientConnection> Clients => _clients.Values.ToList();
 
-    public void Register(string method, Func<ClientConnection, JsonElement[], Task<object?>> handler)
+    public void Register(string method, Func<LegacyClientConnection, JsonElement[], Task<object?>> handler)
     {
         _handlers[method] = handler;
     }
@@ -68,11 +70,11 @@ public class SocketSignalServer
     private async Task HandleClientAsync(WebSocket socket, CancellationToken cancellationToken)
     {
         var id = Guid.NewGuid().ToString("N");
-        var client = new ClientConnection(id, socket, this);
+        var client = new LegacyClientConnection(id, socket, this);
         _clients[id] = client;
 
         // Send welcome with client id
-        await client.SendAsync(new SignalMessage
+        await client.SendAsync(new LegacySignalMessage
         {
             Type = "welcome",
             Id = id
@@ -95,8 +97,8 @@ public class SocketSignalServer
                             var resultObj = await handler(client, args);
                             if (msg.ExpectReturn && msg.Id != null)
                             {
-                                var resultElement = JsonSerializer.SerializeToElement(resultObj, ClientConnection.JsonOptions);
-                                await client.SendAsync(new SignalMessage
+                                var resultElement = JsonSerializer.SerializeToElement(resultObj, LegacyClientConnection.JsonOptions);
+                                await client.SendAsync(new LegacySignalMessage
                                 {
                                     Type = "result",
                                     Id = msg.Id,
@@ -108,7 +110,7 @@ public class SocketSignalServer
                         {
                             if (msg.ExpectReturn && msg.Id != null)
                             {
-                                await client.SendAsync(new SignalMessage
+                                await client.SendAsync(new LegacySignalMessage
                                 {
                                     Type = "result",
                                     Id = msg.Id,
@@ -119,7 +121,7 @@ public class SocketSignalServer
                     }
                     else if (msg.ExpectReturn && msg.Id != null)
                     {
-                        await client.SendAsync(new SignalMessage
+                        await client.SendAsync(new LegacySignalMessage
                         {
                             Type = "result",
                             Id = msg.Id,
@@ -168,13 +170,13 @@ public class SocketSignalServer
     {
         if (_groups.TryGetValue(groupName, out var set))
         {
-            List<ClientConnection> targets;
+            List<LegacyClientConnection> targets;
             lock (set)
             {
                 targets = set
                     .Select(id => _clients.TryGetValue(id, out var c) ? c : null)
                     .Where(c => c != null)
-                    .Cast<ClientConnection>()
+                    .Cast<LegacyClientConnection>()
                     .ToList();
             }
             var tasks = targets.Select(c => c.InvokeClientAsync(method, args, false));
@@ -195,14 +197,14 @@ public class SocketSignalServer
     }
 }
 
-public class ClientConnection
+public class LegacyClientConnection
 {
     private readonly WebSocket _socket;
-    private readonly SocketSignalServer _server;
+    private readonly LegacySocketSignalServer _server;
 
     public string Id { get; }
 
-    public ClientConnection(string id, WebSocket socket, SocketSignalServer server)
+    public LegacyClientConnection(string id, WebSocket socket, LegacySocketSignalServer server)
     {
         Id = id;
         _socket = socket;
@@ -211,7 +213,7 @@ public class ClientConnection
 
     public async Task InvokeClientAsync(string method, object?[] args, bool expectReturn, string? callId = null, CancellationToken ct = default)
     {
-        var msg = new SignalMessage
+        var msg = new LegacySignalMessage
         {
             Type = "invoke",
             Id = callId ?? (expectReturn ? Guid.NewGuid().ToString("N") : null),
@@ -222,14 +224,14 @@ public class ClientConnection
         await SendAsync(msg, ct);
     }
 
-    public Task SendAsync(SignalMessage msg, CancellationToken ct = default)
+    public Task SendAsync(LegacySignalMessage msg, CancellationToken ct = default)
     {
         var json = JsonSerializer.Serialize(msg, JsonOptions);
         var buffer = Encoding.UTF8.GetBytes(json);
         return _socket.SendAsync(buffer, WebSocketMessageType.Text, true, ct);
     }
 
-    public async Task<SignalMessage?> ReceiveAsync(CancellationToken ct = default)
+    public async Task<LegacySignalMessage?> ReceiveAsync(CancellationToken ct = default)
     {
         var buffer = new byte[4096];
         using var ms = new MemoryStream();
@@ -242,7 +244,7 @@ public class ClientConnection
         } while (!result.EndOfMessage);
 
         var json = Encoding.UTF8.GetString(ms.ToArray());
-        return JsonSerializer.Deserialize<SignalMessage>(json, JsonOptions);
+        return JsonSerializer.Deserialize<LegacySignalMessage>(json, JsonOptions);
     }
 
     public static readonly JsonSerializerOptions JsonOptions = new()
@@ -252,7 +254,7 @@ public class ClientConnection
     };
 }
 
-public class SignalMessage
+public class LegacySignalMessage
 {
     public string Type { get; set; } = "";
     public string? Id { get; set; }

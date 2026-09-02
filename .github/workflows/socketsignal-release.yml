@@ -1,0 +1,75 @@
+# SocketSignal - publish to NuGet on a tag
+# Gravicode Studios, led by Kang Fadhil.
+#
+# Tag a release as socketsignal-v2.0.0 and this pushes the package. The version comes from the tag,
+# so Directory.Build.props and the tag can never disagree about what was shipped.
+name: SocketSignal Release
+
+on:
+  push:
+    tags: ['socketsignal-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish, e.g. 2.0.0'
+        required: true
+
+defaults:
+  run:
+    working-directory: SocketSignal
+
+jobs:
+  publish:
+    name: pack and publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # SourceLink wants the full history
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Work out the version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ github.event.inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME#socketsignal-v}"
+          fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+          echo "Publishing $version"
+
+      - name: Test before shipping
+        run: dotnet test tests/SocketSignal.Tests/SocketSignal.Tests.csproj -c Release
+
+      - name: Pack
+        run: |
+          dotnet pack src/SocketSignal/SocketSignal.csproj \
+            -c Release \
+            -p:Version=${{ steps.version.outputs.value }} \
+            -o artifacts
+
+      - name: Push to NuGet
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "NUGET_API_KEY is not set; add it as a repository secret." >&2
+            exit 1
+          fi
+          dotnet nuget push "artifacts/*.nupkg" \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Upload the package as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: socketsignal-${{ steps.version.outputs.value }}
+          path: SocketSignal/artifacts/*.*nupkg

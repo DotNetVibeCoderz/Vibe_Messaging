@@ -1,0 +1,103 @@
+# SocketSignal - continuous integration
+# Gravicode Studios, led by Kang Fadhil.
+name: SocketSignal CI
+
+on:
+  push:
+    branches: [main]
+    paths: ['SocketSignal/**', '.github/workflows/socketsignal-*.yml']
+  pull_request:
+    paths: ['SocketSignal/**']
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: SocketSignal
+
+jobs:
+  build:
+    name: build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore SocketSignal.slnx
+
+      - name: Build
+        run: dotnet build SocketSignal.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test tests/SocketSignal.Tests/SocketSignal.Tests.csproj -c Release --no-build --verbosity normal
+
+      - name: Pack
+        if: matrix.os == 'ubuntu-latest'
+        run: dotnet pack src/SocketSignal/SocketSignal.csproj -c Release --no-build -o artifacts
+
+      - name: Upload package
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: SocketSignal/artifacts/*.*nupkg
+
+  clients:
+    name: client SDKs
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      # The SDKs are checked against a real server rather than a mock: the point of three client
+      # libraries is that they all speak the same protocol as the .NET one.
+      - name: Start a SocketSignal server
+        run: |
+          dotnet build src/SocketSignal.Demo -c Release
+          nohup dotnet run --project src/SocketSignal.Demo -c Release --no-build -- serve > server.log 2>&1 &
+          for i in $(seq 1 30); do
+            if (echo > /dev/tcp/localhost/8080) 2>/dev/null; then echo "server up"; exit 0; fi
+            sleep 1
+          done
+          echo "server did not start"; cat server.log; exit 1
+
+      - name: Node.js client
+        run: node example.mjs
+        working-directory: SocketSignal/clients/nodejs
+
+      - name: Python client
+        run: |
+          python -m pip install --quiet websockets
+          python example.py
+        working-directory: SocketSignal/clients/python
+
+      - name: Go client
+        run: |
+          go mod tidy
+          go vet ./...
+          go run ./example
+        working-directory: SocketSignal/clients/go
