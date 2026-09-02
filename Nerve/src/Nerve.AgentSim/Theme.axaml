@@ -1,0 +1,54 @@
+<!--
+  Nerve Agent Coordination - visual language
+  Gravicode Studios, led by Kang Fadhil.
+
+  The panel is a histology slide on a light box, not a control room. Nerve carries impulses, so the
+  reference is the tissue those impulses travel through: pale cool glass rather than paper, the
+  violet of a cresyl stain for the orchestrator, and one stain colour per specialist. Structures are
+  labelled the way an anatomical plate labels them, in an italic serif, and every number is set in a
+  monospace so a queue depth changing does not move the text beside it.
+
+  Colour is never decoration here. A stain identifies one agent; carmine appears only where
+  something needs attention.
+-->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- ============================== The slide ============================== -->
+  <SolidColorBrush x:Key="Slide" Color="#E7EDF0" />
+  <SolidColorBrush x:Key="Mount" Color="#F8FAFB" />
+  <SolidColorBrush x:Key="MountSunk" Color="#DFE7EB" />
+  <SolidColorBrush x:Key="Etch" Color="#C4D0D7" />
+  <SolidColorBrush x:Key="EtchStrong" Color="#A6B6C0" />
+
+  <!-- ============================== Lettering ============================== -->
+  <SolidColorBrush x:Key="Nissl" Color="#17222C" />
+  <SolidColorBrush x:Key="Stroma" Color="#5B6D79" />
+  <SolidColorBrush x:Key="Faint" Color="#8A9AA5" />
+
+  <!-- =============================== Stains ================================
+       Cresyl violet is the orchestrator and anything belonging to a mission as a whole. The other
+       five identify one specialist each and appear nowhere else.
+  -->
+  <SolidColorBrush x:Key="Cresyl" Color="#6B2FA0" />
+  <SolidColorBrush x:Key="Prussian" Color="#1B4F8C" />
+  <SolidColorBrush x:Key="Verdigris" Color="#0E7C6B" />
+  <SolidColorBrush x:Key="Ochre" Color="#9A6B0A" />
+  <SolidColorBrush x:Key="Carmine" Color="#BE1250" />
+  <SolidColorBrush x:Key="Sienna" Color="#A8451E" />
+
+  <SolidColorBrush x:Key="CresylWash" Color="#6B2FA0" Opacity="0.10" />
+  <SolidColorBrush x:Key="CarmineWash" Color="#BE1250" Opacity="0.10" />
+  <SolidColorBrush x:Key="VerdigrisWash" Color="#0E7C6B" Opacity="0.10" />
+
+  <!-- ============================= Typography =============================
+       Constantia is a text serif with old-style figures, drawn for reading on screen. It is here
+       because anatomical plates label their structures in a serif, usually italic, and the arbor on
+       this panel is labelled the same way. Inter carries the interface prose, and Consolas every
+       number, so a column of counts stays a column.
+  -->
+  <FontFamily x:Key="PlateFace">Constantia, Cambria, Georgia, serif</FontFamily>
+  <FontFamily x:Key="BodyFace">avares://Avalonia.Fonts.Inter/Assets#Inter, Segoe UI, sans-serif</FontFamily>
+  <FontFamily x:Key="DataFace">Consolas, Cascadia Mono, monospace</FontFamily>
+
+</ResourceDictionary>

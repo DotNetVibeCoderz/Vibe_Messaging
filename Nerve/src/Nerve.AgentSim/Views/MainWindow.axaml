@@ -1,0 +1,215 @@
+<!--
+  Nerve Agent Coordination - the panel
+  Gravicode Studios, led by Kang Fadhil.
+
+  Three columns, left to right, in the order work actually moves: the instructions that came in, the
+  arbor carrying them out to the specialists and the answers back, and the aggregation they fold
+  into. The synapse log under the arbor is the same traffic in words, for when the picture is moving
+  too fast to read.
+-->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Nerve.AgentSim.ViewModels"
+        xmlns:ctl="using:Nerve.AgentSim.Controls"
+        x:Class="Nerve.AgentSim.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="Nerve - Agent Coordination"
+        Width="1420" Height="820"
+        MinWidth="1100" MinHeight="700"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Slide}"
+        FontFamily="{DynamicResource BodyFace}">
+
+  <Grid RowDefinitions="Auto,*,Auto">
+
+    <!-- ============================ Specimen label ============================
+         The slide's own label: what this is, and the two switches that put work on it.
+    -->
+    <Border Grid.Row="0" Background="{DynamicResource Mount}"
+            BorderBrush="{DynamicResource Etch}" BorderThickness="0,0,0,1" Padding="20,14">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+          <Border Width="3" Height="38" Background="{DynamicResource Cresyl}" />
+          <StackPanel Spacing="3">
+            <TextBlock Text="NERVE  ·  AGENT COORDINATION" Classes="eyebrow"
+                       FontSize="12.5" Foreground="{DynamicResource Nissl}" />
+            <TextBlock Text="One orchestrator, six specialists, and nothing between them but topics"
+                       Classes="dim" FontSize="11.5" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Spacing="2"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+          <TextBlock Text="ACROSS THE HUB" Classes="eyebrow" FontSize="9.5"
+                     HorizontalAlignment="Center" />
+          <TextBlock Text="{Binding Rate}" Classes="data" FontSize="14"
+                     Foreground="{DynamicResource Cresyl}" HorizontalAlignment="Center" />
+        </StackPanel>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+          <Button Content="Dispatch mission" Classes="control primary" Command="{Binding Dispatch}" />
+          <Button Content="Dispatch four" Classes="control" Command="{Binding DispatchBurst}" />
+          <Button Content="{Binding AutopilotLabel}" Classes="control" Command="{Binding ToggleAutopilot}" />
+          <Button Content="Clear" Classes="control" Command="{Binding Clear}" />
+        </StackPanel>
+
+      </Grid>
+    </Border>
+
+    <!-- ================================ The slide ============================ -->
+    <Grid Grid.Row="1" ColumnDefinitions="318,*,362" Margin="14">
+
+      <!-- ============================ Mission queue ============================
+           What was asked for, newest at the top. Selecting one shows its plan on the right.
+      -->
+      <Border Grid.Column="0" Classes="panel" Margin="0,0,7,0">
+        <Grid RowDefinitions="Auto,*">
+          <Border Grid.Row="0" BorderBrush="{DynamicResource Etch}" BorderThickness="0,0,0,1" Padding="14,11">
+            <TextBlock Text="INSTRUCTIONS RECEIVED" Classes="eyebrow" />
+          </Border>
+
+          <ListBox Grid.Row="1" ItemsSource="{Binding Missions}" SelectedItem="{Binding Selected}"
+                   Background="Transparent" BorderThickness="0" Padding="6">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:MissionViewModel">
+                <StackPanel Spacing="5" Margin="4,7">
+                  <StackPanel Orientation="Horizontal" Spacing="9">
+                    <TextBlock Text="{Binding Label}" Classes="data" FontSize="11"
+                               Foreground="{Binding StateBrush}" />
+                    <TextBlock Text="{Binding AcceptedAt}" Classes="data faint" FontSize="10.5" />
+                    <TextBlock Text="{Binding State}" Classes="data" FontSize="10.5"
+                               Foreground="{Binding StateBrush}" />
+                  </StackPanel>
+                  <TextBlock Text="{Binding Instruction}" TextWrapping="Wrap" FontSize="12.5" />
+
+                  <!-- One pip per planned step, in that specialist's stain, filled once it has
+                       answered. It says who is on the mission as well as how far along it is,
+                       which a progress bar cannot. -->
+                  <ItemsControl ItemsSource="{Binding Steps}" Margin="0,2,0,0">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="4" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:StepViewModel">
+                        <Border Width="20" Height="3" Background="{Binding Stain}"
+                                Opacity="{Binding PipOpacity}" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <!-- ========================== The arbor and the log =======================
+           The signal map, and the same traffic written out underneath it.
+      -->
+      <Grid Grid.Column="1" RowDefinitions="*,232" Margin="7,0">
+
+        <Border Grid.Row="0" Classes="panel" Margin="0,0,0,7">
+          <Grid RowDefinitions="Auto,*">
+            <Border Grid.Row="0" BorderBrush="{DynamicResource Etch}" BorderThickness="0,0,0,1" Padding="14,11">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Grid.Column="0" Text="THE ARBOR" Classes="eyebrow" />
+                <TextBlock Grid.Column="2" Classes="data faint" FontSize="10.5"
+                           Text="violet leaving the soma is a sub-task · a stain returning is an answer" />
+              </Grid>
+            </Border>
+
+            <ctl:Arbor Grid.Row="1" Field="{Binding Field}" Margin="6" />
+          </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Classes="panel">
+          <Grid RowDefinitions="Auto,*">
+            <Border Grid.Row="0" BorderBrush="{DynamicResource Etch}" BorderThickness="0,0,0,1" Padding="14,11">
+              <TextBlock Text="SYNAPSE LOG" Classes="eyebrow" />
+            </Border>
+
+            <ItemsControl Grid.Row="1" ItemsSource="{Binding Log}" Margin="12,8">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:LogLine">
+                  <Grid ColumnDefinitions="72,214,*" Margin="0,2">
+                    <TextBlock Grid.Column="0" Text="{Binding Time}" Classes="data faint" FontSize="10.5" />
+                    <TextBlock Grid.Column="1" Text="{Binding Topic}" Classes="data" FontSize="10.5"
+                               Foreground="{Binding Accent}" />
+                    <TextBlock Grid.Column="2" Text="{Binding Detail}" FontSize="11.5"
+                               TextTrimming="CharacterEllipsis" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+              <ItemsControl.Template>
+                <ControlTemplate>
+                  <ScrollViewer><ItemsPresenter /></ScrollViewer>
+                </ControlTemplate>
+              </ItemsControl.Template>
+            </ItemsControl>
+          </Grid>
+        </Border>
+
+      </Grid>
+
+      <!-- ============================= Aggregation =============================
+           The selected mission's plan, one row per specialist, with the answer folded in as it
+           arrives.
+      -->
+      <Border Grid.Column="2" Classes="panel" Margin="7,0,0,0">
+        <Grid RowDefinitions="Auto,Auto,*">
+          <Border Grid.Row="0" BorderBrush="{DynamicResource Etch}" BorderThickness="0,0,0,1" Padding="14,11">
+            <TextBlock Text="AGGREGATION" Classes="eyebrow" />
+          </Border>
+
+          <Border Grid.Row="1" Padding="14,13" BorderBrush="{DynamicResource Etch}" BorderThickness="0,0,0,1"
+                  IsVisible="{Binding Selected, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <StackPanel Spacing="7" DataContext="{Binding Selected}" x:DataType="vm:MissionViewModel">
+              <StackPanel Orientation="Horizontal" Spacing="9">
+                <TextBlock Text="{Binding Label}" Classes="data" FontSize="11"
+                           Foreground="{Binding StateBrush}" />
+                <TextBlock Text="{Binding Summary}" Classes="data faint" FontSize="10.5" />
+              </StackPanel>
+              <TextBlock Text="{Binding Instruction}" Classes="plate" FontSize="14.5" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+
+          <ScrollViewer Grid.Row="2">
+            <ItemsControl ItemsSource="{Binding Selected.Steps}" Margin="14,10">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:StepViewModel">
+                  <Grid ColumnDefinitions="3,*" Margin="0,0,0,13">
+                    <Border Grid.Column="0" Background="{Binding Stain}" Width="3" />
+                    <StackPanel Grid.Column="1" Spacing="3" Margin="11,0,0,0">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding Display}" Classes="plate" FontSize="13"
+                                   Foreground="{Binding Stain}" />
+                        <TextBlock Text="{Binding Trailer}" Classes="data faint" FontSize="10" />
+                      </StackPanel>
+                      <TextBlock Text="{Binding Brief}" Classes="faint" FontSize="11" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Finding}" FontSize="12" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+
+    </Grid>
+
+    <!-- ============================== Hub counters ============================= -->
+    <Border Grid.Row="2" Background="{DynamicResource Mount}"
+            BorderBrush="{DynamicResource Etch}" BorderThickness="0,1,0,0" Padding="20,9">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <TextBlock Grid.Column="0" Text="{Binding Statistics}" Classes="data" FontSize="11" />
+        <TextBlock Grid.Column="2" Classes="data faint" FontSize="11"
+                   Text="Gravicode Studios · led by Kang Fadhil" />
+      </Grid>
+    </Border>
+
+  </Grid>
+</Window>

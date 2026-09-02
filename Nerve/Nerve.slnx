@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Nerve/Nerve.csproj" />
+    <Project Path="src/Nerve.AgentSim/Nerve.AgentSim.csproj" />
+    <Project Path="src/Nerve.Benchmarks/Nerve.Benchmarks.csproj" />
+    <Project Path="src/Nerve.Demo/Nerve.Demo.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Nerve.Tests/Nerve.Tests.csproj" />
+  </Folder>
+</Solution>

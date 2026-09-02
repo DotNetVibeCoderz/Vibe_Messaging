@@ -1,0 +1,132 @@
+<!--
+  Nerve Agent Coordination - control styles
+  Gravicode Studios, led by Kang Fadhil.
+
+  Two radii only: 2px on anything that holds text, 0 on rules and wells. A slide has no rounded
+  corners, and the restraint keeps the arbor as the one shape that draws the eye.
+-->
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- ================================ Text ================================ -->
+  <Style Selector="TextBlock">
+    <Setter Property="FontFamily" Value="{DynamicResource BodyFace}" />
+    <Setter Property="Foreground" Value="{DynamicResource Nissl}" />
+    <Setter Property="FontSize" Value="12.5" />
+  </Style>
+
+  <Style Selector="TextBlock.plate">
+    <Setter Property="FontFamily" Value="{DynamicResource PlateFace}" />
+    <Setter Property="FontStyle" Value="Italic" />
+    <Setter Property="FontSize" Value="14" />
+  </Style>
+
+  <Style Selector="TextBlock.eyebrow">
+    <Setter Property="FontFamily" Value="{DynamicResource PlateFace}" />
+    <Setter Property="FontSize" Value="10.5" />
+    <Setter Property="LetterSpacing" Value="2.2" />
+    <Setter Property="Foreground" Value="{DynamicResource Stroma}" />
+  </Style>
+
+  <Style Selector="TextBlock.data">
+    <Setter Property="FontFamily" Value="{DynamicResource DataFace}" />
+    <Setter Property="FontSize" Value="11.5" />
+    <Setter Property="Foreground" Value="{DynamicResource Stroma}" />
+  </Style>
+
+  <Style Selector="TextBlock.dim">
+    <Setter Property="Foreground" Value="{DynamicResource Stroma}" />
+  </Style>
+
+  <Style Selector="TextBlock.faint">
+    <Setter Property="Foreground" Value="{DynamicResource Faint}" />
+  </Style>
+
+  <!-- =============================== Buttons ===============================
+       A button here is a switch on an instrument: a hairline box, a serif label, and a stain that
+       only appears on the one that starts work.
+  -->
+  <Style Selector="Button.control">
+    <Setter Property="FontFamily" Value="{DynamicResource PlateFace}" />
+    <Setter Property="FontSize" Value="12.5" />
+    <Setter Property="Padding" Value="14,7" />
+    <Setter Property="CornerRadius" Value="2" />
+    <Setter Property="Background" Value="{DynamicResource Mount}" />
+    <Setter Property="Foreground" Value="{DynamicResource Nissl}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource EtchStrong}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+
+  <Style Selector="Button.control:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MountSunk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Stroma}" />
+  </Style>
+
+  <Style Selector="Button.control:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Etch}" />
+  </Style>
+
+  <Style Selector="Button.primary">
+    <Setter Property="Background" Value="{DynamicResource Cresyl}" />
+    <Setter Property="Foreground" Value="#F8FAFB" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Cresyl}" />
+  </Style>
+
+  <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#7E3CBB" />
+    <Setter Property="BorderBrush" Value="#7E3CBB" />
+  </Style>
+
+  <!-- ============================== Surfaces =============================== -->
+  <Style Selector="Border.panel">
+    <Setter Property="Background" Value="{DynamicResource Mount}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Etch}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+
+  <Style Selector="Border.well">
+    <Setter Property="Background" Value="{DynamicResource MountSunk}" />
+    <Setter Property="CornerRadius" Value="2" />
+  </Style>
+
+  <!-- ============================== Selection =============================
+       Fluent selects with a saturated accent fill, which on this palette reads as a different
+       application. A selected mission is marked the way everything else here is marked: a stain
+       rule down the left edge and the faintest possible wash.
+  -->
+  <Style Selector="ListBoxItem">
+    <Setter Property="Padding" Value="8,2" />
+    <Setter Property="CornerRadius" Value="0" />
+  </Style>
+
+  <Style Selector="ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="2,0,0,0" />
+  </Style>
+
+  <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MountSunk}" />
+  </Style>
+
+  <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource CresylWash}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Cresyl}" />
+  </Style>
+
+  <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource CresylWash}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Cresyl}" />
+  </Style>
+
+  <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource Nissl}" />
+  </Style>
+
+  <!-- ============================== Scrolling ============================== -->
+  <Style Selector="ScrollViewer">
+    <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+    <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+  </Style>
+
+</Styles>
