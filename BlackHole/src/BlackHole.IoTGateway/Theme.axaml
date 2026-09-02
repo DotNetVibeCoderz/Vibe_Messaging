@@ -1,0 +1,44 @@
+<!--
+  BlackHole IoT Gateway - visual language
+  Gravicode Studios, led by Kang Fadhil.
+
+  The panel is modelled on a multi-channel strip chart recorder in a steel instrument cabinet:
+  painted blue-grey steel, warm paper-white lettering, and one ink colour per channel taken from
+  the pen sets those recorders shipped with. Colour is never decoration here - a pen colour
+  identifies a device, and the alarm hues are the only saturated reds on screen.
+-->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- ============================== Cabinet ============================== -->
+  <Color x:Key="InkColor">#0E1720</Color>
+  <SolidColorBrush x:Key="Ink" Color="#0E1720" />
+  <SolidColorBrush x:Key="Panel" Color="#14202B" />
+  <SolidColorBrush x:Key="Raised" Color="#1A2836" />
+  <SolidColorBrush x:Key="RaisedHover" Color="#223243" />
+  <SolidColorBrush x:Key="Rule" Color="#2C4257" />
+  <SolidColorBrush x:Key="RuleSoft" Color="#1F3040" />
+
+  <!-- ============================== Lettering ============================ -->
+  <SolidColorBrush x:Key="Paper" Color="#E7E2D6" />
+  <SolidColorBrush x:Key="PaperDim" Color="#93A4B3" />
+  <SolidColorBrush x:Key="PaperFaint" Color="#5E7186" />
+
+  <!-- ============================== Pen set ============================== -->
+  <SolidColorBrush x:Key="PenRed" Color="#E2504A" />
+  <SolidColorBrush x:Key="PenGreen" Color="#56B87F" />
+  <SolidColorBrush x:Key="PenBlue" Color="#4A90D9" />
+  <SolidColorBrush x:Key="PenViolet" Color="#9B7EDE" />
+  <SolidColorBrush x:Key="PenAmber" Color="#E0A33E" />
+  <SolidColorBrush x:Key="PenCyan" Color="#45B6C4" />
+
+  <!-- ============================== Typography ===========================
+       Bahnschrift is Microsoft's DIN 1451 derivative - the lettering standard for German
+       machinery and control panels, which is exactly what this panel is imitating. Cascadia Mono
+       carries every numeral so digits stay in column as values change.
+  -->
+  <FontFamily x:Key="LabelFace">Bahnschrift Condensed, Bahnschrift, Segoe UI, sans-serif</FontFamily>
+  <FontFamily x:Key="DataFace">Cascadia Mono, Consolas, monospace</FontFamily>
+  <FontFamily x:Key="ProseFace">Segoe UI, sans-serif</FontFamily>
+
+</ResourceDictionary>

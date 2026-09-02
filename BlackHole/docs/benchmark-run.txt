@@ -1,0 +1,52 @@
+==========================================================
+  BLACKHOLE MESSAGING v3 - THROUGHPUT HARNESS
+==========================================================
+  runtime      : 10.0.11
+  os           : Microsoft Windows NT 10.0.26200.0
+  processors   : 8
+  server GC    : True
+  measured     : 2026-09-02 21:04
+  transport    : TCP over loopback, both ends in one process
+
+--- RPC latency, sequential round trips over loopback ----
+  payload            30 bytes
+  calls              50,000
+  throughput         21,139 calls/sec
+  mean               47.2 us
+  p50                41.3 us
+  p90                70.7 us
+  p99                110.0 us
+  p99.9              218.7 us
+  max                1,822.1 us
+  allocated          776 B/call (client and server in one process)
+  gen0 collections   15
+
+--- RPC throughput, concurrent connections ---------------
+  connections   in flight   calls        duration     calls/sec
+  -----------   ---------   ----------   ----------   ------------
+            1          16       20,000        583 ms         34,324
+            4          16       80,000        499 ms        160,293
+           16          16      320,000      1,593 ms        200,817
+
+--- Pub/Sub fan-out --------------------------------------
+  subscribers        50
+  publishes          2,000
+  deliveries         100,000
+  duration           1,435 ms
+  delivery rate      69,711 messages/sec
+
+--- Batching, 200,000 small publishes --------------------
+  mode                       duration     messages/sec   socket writes
+  ------------------------   ----------   ------------   -------------
+  one send per message          1,976 ms        101,214         200,000
+  batches of 256                   89 ms      2,236,709             783
+  batches of 1024                  87 ms      2,305,513             196
+
+--- Streaming, 64 MiB per transfer -----------------------
+  chunk size   duration     throughput      chunks
+  ----------   ----------   -------------   ---------
+       4 KiB        142 ms          452 MiB/s      16,384
+      16 KiB        123 ms          520 MiB/s       4,096
+      64 KiB        134 ms          479 MiB/s       1,024
+
+Gravicode Studios - led by Kang Fadhil

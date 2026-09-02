@@ -1,0 +1,313 @@
+<!--
+  BlackHole IoT Gateway - operator panel
+  Gravicode Studios, led by Kang Fadhil.
+-->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:BlackHole.IoTGateway.ViewModels"
+        xmlns:ctl="using:BlackHole.IoTGateway.Controls"
+        x:Class="BlackHole.IoTGateway.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="BlackHole IoT Gateway"
+        Width="1360" Height="700"
+        MinWidth="1040" MinHeight="640"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Ink}"
+        FontFamily="{DynamicResource ProseFace}">
+
+  <Grid RowDefinitions="Auto,Auto,*">
+
+    <!-- ============================ Cabinet rail ============================
+         The instrument's nameplate: what this is, whether it is live, and the two
+         switches that change that.
+    -->
+    <Border Grid.Row="0" Background="{DynamicResource Panel}"
+            BorderBrush="{DynamicResource Rule}" BorderThickness="0,0,0,1" Padding="18,12">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+          <Border Width="3" Height="34" Background="{DynamicResource PenRed}" />
+          <StackPanel Spacing="1">
+            <TextBlock Text="BLACKHOLE IoT GATEWAY" FontFamily="{DynamicResource LabelFace}"
+                       FontSize="17" FontWeight="Bold" LetterSpacing="2.4"
+                       Foreground="{DynamicResource Paper}" />
+            <TextBlock Text="{Binding Status}" Classes="prose" FontSize="11.5" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="9"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+          <Ellipse Width="9" Height="9" Fill="{Binding GatewayStateBrush}" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding GatewayStateLabel}" Classes="mono" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+          <Button Content="Start gateway" Classes="control primary" Command="{Binding StartGateway}" />
+          <Button Content="Stop gateway" Classes="control danger" Command="{Binding StopGateway}" />
+        </StackPanel>
+
+      </Grid>
+    </Border>
+
+    <!-- ========================== The traffic ribbon ==========================
+         Every device writes one pen onto this chart. Time runs right to left, the
+         newest sample sits under the pen head at the right edge, and the selected
+         device's trace is the bold one.
+    -->
+    <Border Grid.Row="1" Background="{DynamicResource Panel}"
+            BorderBrush="{DynamicResource Rule}" BorderThickness="0,0,0,1" Padding="18,12,18,8">
+      <Grid RowDefinitions="Auto,*" Height="172">
+
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" Margin="0,0,0,8">
+          <TextBlock Grid.Column="0" Text="TRAFFIC INTO THE GATEWAY" Classes="silkscreen"
+                     VerticalAlignment="Bottom" />
+
+          <StackPanel Grid.Column="2" Margin="26,0,0,0">
+            <TextBlock Text="MESSAGES / SEC" Classes="silkscreen" />
+            <StackPanel Orientation="Horizontal" Spacing="5">
+              <TextBlock Text="{Binding MessagesPerSecond}" Classes="readout" />
+            </StackPanel>
+          </StackPanel>
+
+          <StackPanel Grid.Column="3" Margin="26,0,0,0">
+            <TextBlock Text="READINGS" Classes="silkscreen" />
+            <TextBlock Text="{Binding ReadingsReceived}" Classes="readout" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="4" Margin="26,0,0,0">
+            <TextBlock Text="DEVICES" Classes="silkscreen" />
+            <TextBlock Text="{Binding DeviceCount}" Classes="readout" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="5" Margin="26,0,0,0">
+            <TextBlock Text="RECEIVED" Classes="silkscreen" />
+            <TextBlock Text="{Binding BytesReceived}" Classes="readout" />
+          </StackPanel>
+        </Grid>
+
+        <ctl:StripChart Name="Ribbon" Grid.Row="1"
+                        Channels="{Binding Channels}"
+                        WindowSeconds="45"
+                        GraticuleBrush="{DynamicResource Rule}"
+                        LabelBrush="{DynamicResource PaperFaint}"
+                        LabelFontFamily="{DynamicResource DataFace}" />
+      </Grid>
+    </Border>
+
+    <!-- ============================== Work area ============================== -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,340" Margin="18,14,18,18">
+
+      <!-- ============================ Device list ============================ -->
+      <Border Grid.Column="0" Classes="panel" Margin="0,0,14,0">
+        <Grid RowDefinitions="Auto,*,Auto">
+
+          <Border Grid.Row="0" BorderBrush="{DynamicResource Rule}" BorderThickness="0,0,0,1" Padding="14,11">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+              <TextBlock Grid.Column="0" Text="PLANT FLOOR" Classes="silkscreen" VerticalAlignment="Center" />
+              <ComboBox Grid.Column="2" Classes="control" Width="150" Margin="0,0,8,0"
+                        ItemsSource="{Binding SensorKinds}"
+                        SelectedItem="{Binding SelectedKind, Mode=TwoWay}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Label}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <Button Grid.Column="3" Content="Add device" Classes="control" Margin="0,0,8,0"
+                      Command="{Binding AddDevice}" />
+              <Button Grid.Column="4" Content="Add ten" Classes="control" Command="{Binding AddTen}" />
+            </Grid>
+          </Border>
+
+          <!-- Column legend, printed like the key on a recorder's paper. -->
+          <Border Grid.Row="1" VerticalAlignment="Top" Padding="10,6,10,5"
+                  BorderBrush="{DynamicResource RuleSoft}" BorderThickness="0,0,0,1"
+                  IsVisible="{Binding !!Devices.Count}">
+            <Grid ColumnDefinitions="4,150,110,*,150,86,64">
+              <TextBlock Grid.Column="1" Text="DEVICE" Classes="silkscreen" Margin="12,0,0,0" />
+              <TextBlock Grid.Column="2" Text="MEASURES" Classes="silkscreen" />
+              <TextBlock Grid.Column="3" Text="LAST 30 SECONDS" Classes="silkscreen" Margin="10,0,0,0" />
+              <TextBlock Grid.Column="4" Text="READING" Classes="silkscreen" HorizontalAlignment="Right" />
+              <TextBlock Grid.Column="6" Text="SENT" Classes="silkscreen" HorizontalAlignment="Right" Margin="0,0,4,0" />
+            </Grid>
+          </Border>
+
+          <ScrollViewer Grid.Row="1" Margin="0,26,0,0">
+            <ItemsControl ItemsSource="{Binding Devices}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:DeviceViewModel">
+                  <Border Classes="deviceRow" Tapped="OnDeviceTapped" Background="Transparent" Cursor="Hand">
+                    <Grid ColumnDefinitions="4,150,110,*,150,86,64" Height="42">
+
+                      <!-- The pen: this device's ink, repeated everywhere it appears. -->
+                      <Border Grid.Column="0" Background="{Binding PenBrush}" Width="3"
+                              HorizontalAlignment="Left" VerticalAlignment="Stretch" Margin="0,2" />
+
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0" Spacing="1">
+                        <TextBlock Text="{Binding DeviceId}" Classes="figure" />
+                        <TextBlock Text="{Binding Area}" Classes="mono" FontSize="10"
+                                   Foreground="{DynamicResource PaperFaint}" />
+                      </StackPanel>
+
+                      <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
+                        <TextBlock Text="{Binding Measurement}" Classes="mono" FontSize="11" />
+                        <TextBlock Text="{Binding StateLabel}" Classes="mono" FontSize="10"
+                                   Foreground="{DynamicResource PaperFaint}" />
+                      </StackPanel>
+
+                      <ctl:Sparkline Grid.Column="3" Margin="10,6"
+                                     Samples="{Binding Samples}"
+                                     PenColor="{Binding Pen}"
+                                     Minimum="{Binding Minimum}"
+                                     Maximum="{Binding Maximum}" />
+
+                      <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="5"
+                                  HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Display}" Classes="figure" FontSize="17" />
+                        <TextBlock Text="{Binding Unit}" Classes="unit" VerticalAlignment="Bottom" Margin="0,0,0,2" />
+                      </StackPanel>
+
+                      <TextBlock Grid.Column="5" Text="{Binding LevelLabel}" Classes="mono" FontSize="10"
+                                 Foreground="{Binding LevelBrush}" HorizontalAlignment="Right"
+                                 VerticalAlignment="Center" Margin="0,0,10,0" />
+
+                      <TextBlock Grid.Column="6" Text="{Binding Published}" Classes="mono" FontSize="10"
+                                 Foreground="{DynamicResource PaperFaint}"
+                                 HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+
+          <!-- Empty state: an invitation, not an apology. -->
+          <StackPanel Grid.Row="1" IsVisible="{Binding !Devices.Count}" ZIndex="1"
+                      VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="7" MaxWidth="330">
+            <TextBlock Text="NO DEVICES YET" Classes="silkscreen" HorizontalAlignment="Center" />
+            <TextBlock Classes="prose" TextAlignment="Center"
+                       Text="Start the gateway, then add a sensor. Each device opens its own connection and publishes readings on its own topic." />
+          </StackPanel>
+
+          <Border Grid.Row="2" BorderBrush="{DynamicResource Rule}" BorderThickness="0,1,0,0" Padding="14,10">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <TextBlock Grid.Column="0" Text="SAMPLE RATE" Classes="silkscreen" VerticalAlignment="Center" />
+              <Slider Grid.Column="1" Classes="control" Margin="14,0" Minimum="1" Maximum="120"
+                      Value="{Binding SampleRateHz, Mode=TwoWay}" TickFrequency="1" IsSnapToTickEnabled="True" />
+              <TextBlock Grid.Column="2" Text="{Binding SampleRateLabel}" Classes="mono" VerticalAlignment="Center" />
+            </Grid>
+          </Border>
+
+        </Grid>
+      </Border>
+
+      <!-- ========================= Gateway + activity ========================= -->
+      <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*">
+
+        <!-- Selected device controls: the RPC and streaming paths, made operable. -->
+        <Border Grid.Row="0" Classes="panel" Padding="14,12" Margin="0,0,0,12">
+          <StackPanel Spacing="10">
+            <TextBlock Text="{Binding SelectionSummary}" Classes="heading" />
+
+            <StackPanel IsVisible="{Binding HasSelection}" Spacing="9">
+              <TextBlock Text="{Binding Selected.Topic}" Classes="mono" FontSize="10"
+                         Foreground="{DynamicResource PaperFaint}" TextWrapping="Wrap" />
+
+              <UniformGrid Columns="3" ColumnSpacing="6" RowSpacing="6">
+                <Button Content="Identify" Classes="control" Command="{Binding Identify}"
+                        HorizontalAlignment="Stretch" />
+                <Button Content="Calibrate" Classes="control" Command="{Binding Calibrate}"
+                        HorizontalAlignment="Stretch" />
+                <Button Content="Pause" Classes="control" Command="{Binding ToggleStream}"
+                        HorizontalAlignment="Stretch" />
+                <Button Content="Excursion" Classes="control" Command="{Binding ForceExcursion}"
+                        HorizontalAlignment="Stretch" />
+                <Button Content="Firmware" Classes="control" Command="{Binding UploadFirmware}"
+                        HorizontalAlignment="Stretch" />
+                <Button Content="Remove" Classes="control danger" Command="{Binding RemoveDevice}"
+                        HorizontalAlignment="Stretch" />
+              </UniformGrid>
+
+              <TextBlock Text="{Binding CommandResult}" Classes="mono" FontSize="10.5"
+                         Foreground="{DynamicResource PenViolet}" TextWrapping="Wrap"
+                         IsVisible="{Binding CommandResult, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            </StackPanel>
+
+            <TextBlock IsVisible="{Binding !HasSelection}" Classes="prose"
+                       Text="Pick a row on the left. The gateway can call methods on any connected device over the same socket it dialled in on." />
+          </StackPanel>
+        </Border>
+
+        <!-- Gateway counters. -->
+        <Border Grid.Row="1" Classes="panel" Padding="14,12" Margin="0,0,0,12">
+          <StackPanel Spacing="9">
+            <TextBlock Text="GATEWAY" Classes="silkscreen" />
+            <UniformGrid Columns="3" ColumnSpacing="10" RowSpacing="9">
+              <StackPanel>
+                <TextBlock Text="DEVICES" Classes="silkscreen" FontSize="9.5" />
+                <TextBlock Text="{Binding ConnectionCount}" Classes="figure" FontSize="16" />
+              </StackPanel>
+              <StackPanel>
+                <TextBlock Text="TOPICS" Classes="silkscreen" FontSize="9.5" />
+                <TextBlock Text="{Binding TopicCount}" Classes="figure" FontSize="16" />
+              </StackPanel>
+              <StackPanel>
+                <TextBlock Text="COMMANDS" Classes="silkscreen" FontSize="9.5" />
+                <TextBlock Text="{Binding CommandsHandled}" Classes="figure" FontSize="16" />
+              </StackPanel>
+              <StackPanel>
+                <TextBlock Text="UPLOADS" Classes="silkscreen" FontSize="9.5" />
+                <TextBlock Text="{Binding StreamsReceived}" Classes="figure" FontSize="16" />
+              </StackPanel>
+              <StackPanel>
+                <TextBlock Text="UPLOADED" Classes="silkscreen" FontSize="9.5" />
+                <TextBlock Text="{Binding StreamBytes}" Classes="figure" FontSize="16" />
+              </StackPanel>
+              <StackPanel>
+                <TextBlock Text="ALARMS" Classes="silkscreen" FontSize="9.5" />
+                <TextBlock Text="{Binding AlarmCount}" Classes="figure" FontSize="16"
+                           Foreground="{DynamicResource PenAmber}" />
+              </StackPanel>
+            </UniformGrid>
+          </StackPanel>
+        </Border>
+
+        <!-- Activity log. -->
+        <Border Grid.Row="2" Classes="panel">
+          <Grid RowDefinitions="Auto,*">
+            <Border Grid.Row="0" BorderBrush="{DynamicResource Rule}" BorderThickness="0,0,0,1" Padding="14,11">
+              <TextBlock Text="ACTIVITY" Classes="silkscreen" />
+            </Border>
+
+            <ScrollViewer Grid.Row="1" Padding="10,6">
+              <ItemsControl ItemsSource="{Binding Activity}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ActivityItem">
+                    <Grid ColumnDefinitions="3,58,*" Margin="0,3">
+                      <Border Grid.Column="0" Background="{Binding Marker}" Width="2"
+                              VerticalAlignment="Stretch" Margin="0,1" />
+                      <TextBlock Grid.Column="1" Text="{Binding Time}" Classes="mono" FontSize="10"
+                                 Foreground="{DynamicResource PaperFaint}" Margin="7,0,0,0" />
+                      <StackPanel Grid.Column="2" Spacing="0">
+                        <TextBlock Text="{Binding Source}" Classes="mono" FontSize="10"
+                                   Foreground="{DynamicResource PaperDim}" />
+                        <TextBlock Text="{Binding Detail}" Classes="mono" FontSize="10.5"
+                                   Foreground="{DynamicResource Paper}" TextWrapping="Wrap" />
+                      </StackPanel>
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+
+            <TextBlock Grid.Row="1" IsVisible="{Binding !Activity.Count}" Classes="prose"
+                       VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"
+                       MaxWidth="230" Margin="16"
+                       Text="Connections, commands and uploads appear here as they happen." />
+          </Grid>
+        </Border>
+
+      </Grid>
+    </Grid>
+  </Grid>
+</Window>

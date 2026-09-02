@@ -1,0 +1,159 @@
+<!--
+  BlackHole IoT Gateway - control surfaces
+  Gravicode Studios, led by Kang Fadhil.
+
+  Everything here is silkscreen and switchgear: tracked-out condensed caps for labels the way they
+  are printed on an instrument panel, monospaced numerals so digits hold their column as values
+  change, and controls that look pressed rather than floating.
+-->
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- ===================== Panel silkscreen labels ===================== -->
+  <Style Selector="TextBlock.silkscreen">
+    <Setter Property="FontFamily" Value="{DynamicResource LabelFace}" />
+    <Setter Property="FontSize" Value="10.5" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="LetterSpacing" Value="1.6" />
+    <Setter Property="Foreground" Value="{DynamicResource PaperFaint}" />
+    <Setter Property="Text" Value="" />
+  </Style>
+
+  <Style Selector="TextBlock.heading">
+    <Setter Property="FontFamily" Value="{DynamicResource LabelFace}" />
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="LetterSpacing" Value="0.6" />
+    <Setter Property="Foreground" Value="{DynamicResource Paper}" />
+  </Style>
+
+  <!-- ===================== Readouts ===================== -->
+  <Style Selector="TextBlock.readout">
+    <Setter Property="FontFamily" Value="{DynamicResource DataFace}" />
+    <Setter Property="FontSize" Value="24" />
+    <Setter Property="Foreground" Value="{DynamicResource Paper}" />
+  </Style>
+
+  <Style Selector="TextBlock.figure">
+    <Setter Property="FontFamily" Value="{DynamicResource DataFace}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{DynamicResource Paper}" />
+  </Style>
+
+  <Style Selector="TextBlock.unit">
+    <Setter Property="FontFamily" Value="{DynamicResource LabelFace}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="{DynamicResource PaperFaint}" />
+  </Style>
+
+  <Style Selector="TextBlock.mono">
+    <Setter Property="FontFamily" Value="{DynamicResource DataFace}" />
+    <Setter Property="FontSize" Value="11.5" />
+    <Setter Property="Foreground" Value="{DynamicResource PaperDim}" />
+  </Style>
+
+  <Style Selector="TextBlock.prose">
+    <Setter Property="FontFamily" Value="{DynamicResource ProseFace}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="{DynamicResource PaperDim}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <!-- ===================== Switchgear ===================== -->
+  <Style Selector="Button.control">
+    <Setter Property="FontFamily" Value="{DynamicResource LabelFace}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource Paper}" />
+    <Setter Property="Background" Value="{DynamicResource Raised}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Rule}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="2" />
+    <Setter Property="Padding" Value="14,7" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.12" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <!-- Tracking belongs on the text itself: Button has no LetterSpacing of its own. -->
+  <Style Selector="Button.control TextBlock">
+    <Setter Property="LetterSpacing" Value="0.8" />
+  </Style>
+
+  <Style Selector="Button.control:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource RaisedHover}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource PaperFaint}" />
+  </Style>
+  <Style Selector="Button.control:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="#0B1219" />
+  </Style>
+  <Style Selector="Button.control:disabled /template/ ContentPresenter">
+    <Setter Property="Background" Value="#141D26" />
+    <Setter Property="TextBlock.Foreground" Value="#3E5064" />
+  </Style>
+
+  <!-- The one button that starts the plant reads as the live circuit. -->
+  <Style Selector="Button.primary /template/ ContentPresenter">
+    <Setter Property="Background" Value="#1B3A2C" />
+    <Setter Property="BorderBrush" Value="#56B87F" />
+    <Setter Property="TextBlock.Foreground" Value="#8FE0B0" />
+  </Style>
+  <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#224B38" />
+  </Style>
+
+  <Style Selector="Button.danger /template/ ContentPresenter">
+    <Setter Property="Background" Value="#3A1D1C" />
+    <Setter Property="BorderBrush" Value="#E2504A" />
+    <Setter Property="TextBlock.Foreground" Value="#F0918C" />
+  </Style>
+  <Style Selector="Button.danger:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#4A2422" />
+  </Style>
+
+  <!-- ===================== Cards and rails ===================== -->
+  <Style Selector="Border.panel">
+    <Setter Property="Background" Value="{DynamicResource Panel}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Rule}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="3" />
+  </Style>
+
+  <Style Selector="Border.deviceRow">
+    <Setter Property="Background" Value="{DynamicResource Raised}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource RuleSoft}" />
+    <Setter Property="Padding" Value="10,7" />
+  </Style>
+
+  <!-- ===================== Inputs ===================== -->
+  <Style Selector="ComboBox.control">
+    <Setter Property="FontFamily" Value="{DynamicResource LabelFace}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Background" Value="{DynamicResource Raised}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Rule}" />
+    <Setter Property="Foreground" Value="{DynamicResource Paper}" />
+    <Setter Property="CornerRadius" Value="2" />
+    <Setter Property="MinHeight" Value="30" />
+  </Style>
+
+  <Style Selector="Slider.control">
+    <Setter Property="Foreground" Value="{DynamicResource PenAmber}" />
+    <Setter Property="MinHeight" Value="24" />
+  </Style>
+
+  <!-- Focus must stay visible: this panel is operated by keyboard as often as by mouse. -->
+  <Style Selector=":is(Control):focus-visible">
+    <Setter Property="FocusAdorner">
+      <FocusAdornerTemplate>
+        <Border BorderBrush="{DynamicResource PenAmber}" BorderThickness="1.5" CornerRadius="2" Margin="-2" />
+      </FocusAdornerTemplate>
+    </Setter>
+  </Style>
+
+  <Style Selector="ScrollViewer">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+</Styles>

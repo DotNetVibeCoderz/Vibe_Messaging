@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>BlackHole</RootNamespace>
+    <AssemblyName>BlackHole</AssemblyName>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Missing XML comment on public member: the codebase documents the surface that matters. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <!-- ============================ NuGet package ============================ -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <!-- The id "BlackHole" is already taken on nuget.org, so the package ships
+         as BlackHole.Messaging. Assembly and namespaces stay BlackHole.*. -->
+    <PackageId>BlackHole.Messaging</PackageId>
+    <Title>BlackHole Messaging</Title>
+    <Description>High-performance, allocation-conscious network messaging for .NET 10. A length-prefixed binary protocol over TCP with RPC, Pub/Sub, Streaming and Batching built on System.IO.Pipelines. Built by Gravicode Studios, led by Kang Fadhil.</Description>
+    <PackageTags>messaging;rpc;pubsub;tcp;streaming;batching;pipelines;high-performance;iot;sockets;binary-protocol</PackageTags>
+    <PackageProjectUrl>https://github.com/DotNetVibeCoderz/Vibe_Messaging/tree/main/BlackHole</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/DotNetVibeCoderz/Vibe_Messaging/tree/main/BlackHole</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryBranch>main</RepositoryBranch>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes>v3.0.0 - Rewritten on System.IO.Pipelines: zero-allocation steady-state framing, pooled buffers, async message router, RPC timeouts and error propagation, keepalive, auto-flush batching, and connection statistics. Targets .NET 10.</PackageReleaseNotes>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="\" />
+    <None Include="../../assets/icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BlackHole.Tests" />
+    <InternalsVisibleTo Include="BlackHole.Benchmarks" />
+  </ItemGroup>
+
+</Project>
