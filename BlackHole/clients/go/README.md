@@ -11,11 +11,11 @@ Requires Go 1.22+. No dependencies outside the standard library.
 ## Install
 
 ```bash
-go get github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go
+go get github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/v3
 ```
 
 ```go
-import bh "github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/blackhole"
+import bh "github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/v3/blackhole"
 ```
 
 ## Transports
