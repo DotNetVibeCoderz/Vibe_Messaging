@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	bh "github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/blackhole"
+	bh "github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/v3/blackhole"
 )
 
 var (

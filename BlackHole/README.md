@@ -111,7 +111,7 @@ server rather than a mock — see [clients/](clients/).
 
 ```bash
 pip install blackhole-messaging
-go get github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go
+go get github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/v3
 npm install @gravicode/blackhole-messaging
 ```
 
@@ -248,7 +248,7 @@ Klien Python, Go, dan Node.js berbicara protokol yang sama, dan masing-masing di
 
 ```bash
 pip install blackhole-messaging
-go get github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go
+go get github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/v3
 npm install @gravicode/blackhole-messaging
 ```
 
