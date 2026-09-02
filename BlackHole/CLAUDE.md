@@ -167,6 +167,26 @@ Codec-only subsets need no .NET: `pytest tests/test_protocol.py`, `go test -shor
 Use `perf_counter` in Python, `process.hrtime.bigint()` in Node, and Go's `PingAverage` when one
 probe is below the clock's granularity. A test asserting a single round trip is `> 0` will be flaky.
 
+## Releasing
+
+Published to nuget.org as **BlackHole.Messaging**. Current version: **3.1.0**
+(`Directory.Build.props` holds `VersionPrefix`).
+
+1. Bump `VersionPrefix`, update `PackageReleaseNotes` in `src/BlackHole/BlackHole.csproj`,
+   and add a section to `CHANGELOG.md`.
+2. Build every project warning-free and run the full test suite.
+3. `dotnet pack src/BlackHole/BlackHole.csproj -c Release -p:ContinuousIntegrationBuild=true`.
+4. **Install the packed .nupkg into a throwaway project and run real code against it** - a
+   project reference proves nothing about what shipped. Both releases so far were verified
+   this way.
+5. Commit, tag `vX.Y.Z`, push both.
+
+Pushing a `v*` tag triggers the publish job, which needs a `NUGET_API_KEY` secret and a
+`nuget` environment. Neither is configured yet, so 3.0.0 and 3.1.0 were pushed by hand.
+
+**A published version is permanent.** Unlisting hides a version but never frees the number, so
+a mistake ships as X.Y.Z+1, never as a re-push.
+
 ## Docs and benchmarks
 
 Docs are bilingual: `docs/` English, `docs/id/` Bahasa Indonesia. A user-facing change to behaviour
