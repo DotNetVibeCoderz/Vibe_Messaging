@@ -23,6 +23,8 @@ internal static class Program
     private static async Task Main(string[] args)
     {
         int port = ArgValue(args, "--port", 0);
+        string? pipeName = StringArg(args, "--pipe");
+        string? unixPath = StringArg(args, "--unix");
 
         var options = new TransportOptions
         {
@@ -32,7 +34,15 @@ internal static class Program
             ErrorHandler = ex => Console.Error.WriteLine($"[transport] {ex.GetType().Name}: {ex.Message}"),
         };
 
-        await using var server = new BlackHoleServer(new IPEndPoint(IPAddress.Loopback, port), options);
+        // The client SDKs test against whichever transport they are exercising; the protocol above
+        // the transport is identical, which is the point.
+        IListenerHost listener = pipeName is not null
+            ? new NamedPipeListenerHost(pipeName, options)
+            : unixPath is not null
+                ? new UnixSocketListenerHost(unixPath, options)
+                : new TcpListenerHost(new IPEndPoint(IPAddress.Loopback, port), options);
+
+        await using var server = new BlackHoleServer(listener, options);
 
         ConfigureMethods(server);
         ConfigureConnections(server);
@@ -41,7 +51,11 @@ internal static class Program
 
         // The test harness reads this line to learn the port, so it must be the first thing out and
         // it must be flushed.
-        Console.WriteLine($"READY {server.EndPoint.Port}");
+        // TCP reports its port so a harness can find it; the others report the endpoint they were
+        // given, so one READY line works for every transport.
+        Console.WriteLine(listener is TcpListenerHost tcp
+            ? $"READY {tcp.EndPoint.Port}"
+            : $"READY {server.Endpoint}");
         Console.Out.Flush();
 
         using var stop = new CancellationTokenSource();
@@ -151,6 +165,12 @@ internal static class Program
 
         server.HandlerFaulted += (message, ex) =>
             Console.Error.WriteLine($"[server] handler failed on {message.Type} '{message.Header}': {ex.Message}");
+    }
+
+    private static string? StringArg(string[] args, string name)
+    {
+        int index = Array.IndexOf(args, name);
+        return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
     }
 
     private static int ArgValue(string[] args, string name, int fallback)

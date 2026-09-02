@@ -26,7 +26,7 @@ from .protocol import (
     topic_matches,
 )
 
-__all__ = ["BlackHoleClient", "Statistics", "connect"]
+__all__ = ["BlackHoleClient", "Statistics", "connect", "connect_unix"]
 
 Handler = Callable[[Message], Any]
 """A message handler. May be a coroutine function; its result is awaited when it is."""
@@ -151,6 +151,54 @@ class BlackHoleClient:
 
         client._read_task = asyncio.create_task(client._read_loop(), name="blackhole-read")
         return client
+
+    @classmethod
+    async def connect_unix(
+        cls,
+        path: str,
+        *,
+        timeout: float = 10.0,
+        max_frame_length: int = DEFAULT_MAX_FRAME_LENGTH,
+        default_timeout: float = 30.0,
+        configure: Callable[["BlackHoleClient"], Any] | None = None,
+    ) -> "BlackHoleClient":
+        """Connect over a Unix domain socket.
+
+        The wire format is identical to TCP; only the address family changes. What you gain is a
+        shorter kernel path and a socket that is not reachable from the network at all - the file's
+        permissions are the access control.
+
+        Unix and macOS only. CPython exposes no ``AF_UNIX`` support to asyncio on Windows, so this
+        raises there; use a named pipe from the .NET side or TCP on loopback instead.
+        """
+        if not hasattr(asyncio, "open_unix_connection"):
+            raise NotImplementedError(
+                "Unix domain sockets are not available to asyncio on this platform. "
+                "Use connect() over loopback TCP instead."
+            )
+
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_unix_connection(path), timeout=timeout
+        )
+
+        client = cls(
+            reader,
+            writer,
+            max_frame_length=max_frame_length,
+            default_timeout=default_timeout,
+        )
+        if configure is not None:
+            result = configure(client)
+            if asyncio.iscoroutine(result):
+                await result
+
+        client._read_task = asyncio.create_task(client._read_loop(), name="blackhole-read")
+        return client
+
+    @staticmethod
+    def unix_supported() -> bool:
+        """True when this platform can use Unix domain sockets from asyncio."""
+        return hasattr(asyncio, "open_unix_connection")
 
     @classmethod
     async def connect_with_retry(
@@ -642,3 +690,8 @@ async def _maybe_await(result: Any) -> Any:
 async def connect(host: str = "127.0.0.1", port: int = 5000, **kwargs: Any) -> BlackHoleClient:
     """Shorthand for :meth:`BlackHoleClient.connect`."""
     return await BlackHoleClient.connect(host, port, **kwargs)
+
+
+async def connect_unix(path: str, **kwargs: Any) -> BlackHoleClient:
+    """Shorthand for :meth:`BlackHoleClient.connect_unix`."""
+    return await BlackHoleClient.connect_unix(path, **kwargs)

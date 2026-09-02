@@ -14,6 +14,27 @@ Requires Node 18+. ESM, no dependencies.
 npm install @gravicode/blackhole-messaging
 ```
 
+## Transports
+
+TCP everywhere, plus the platform's own local IPC — a named pipe on Windows, a Unix domain socket
+elsewhere:
+
+```js
+const client = await connect({ host: '127.0.0.1', port: 5000 });   // TCP
+const client = await connectIpc('blackhole-gateway');              // named pipe on Windows
+const client = await connectIpc('/tmp/blackhole.sock');            // Unix socket elsewhere
+```
+
+`connectIpc` expands a bare name to the full Windows pipe path, so the same string works on both
+sides regardless of platform. `client.transportKind` reports `tcp`, `pipe` or `unix`. Shared memory
+is .NET-only; see [docs/transports.md](../../docs/transports.md).
+
+Compare them yourself:
+
+```bash
+node example/benchmark.js
+```
+
 ## Thirty seconds
 
 ```js

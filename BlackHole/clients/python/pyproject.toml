@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "blackhole-messaging"
-version = "3.0.0"
-description = "Python client for BlackHole Messaging: RPC, Pub/Sub, Streaming and Batching over a binary TCP protocol."
+version = "3.1.0"
+description = "Python client for BlackHole Messaging: RPC, Pub/Sub, Streaming and Batching over TCP or a Unix domain socket."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Gravicode Studios" }]
-keywords = ["messaging", "rpc", "pubsub", "tcp", "streaming", "batching", "iot", "asyncio"]
+keywords = ["messaging", "rpc", "pubsub", "tcp", "ipc", "unix-socket", "streaming", "batching", "iot", "asyncio"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Framework :: AsyncIO",

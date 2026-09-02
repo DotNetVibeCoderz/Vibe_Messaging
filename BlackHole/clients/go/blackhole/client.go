@@ -149,8 +149,23 @@ type Client struct {
 	closeErr  atomic.Pointer[error]
 }
 
-// Connect dials host:port and starts receiving.
+// ConnectUnix dials a Unix domain socket at path.
+//
+// The wire format is identical to TCP; only the address family changes. What you gain is a shorter
+// kernel path - no IP or TCP layer, no checksums, no loopback routing - and a socket that is not
+// reachable from the network at all, since the file's permissions are the access control.
+//
+// Supported on Linux, macOS, and Windows 10 build 17063 or later.
+func ConnectUnix(ctx context.Context, path string, options *Options) (*Client, error) {
+	return dial(ctx, "unix", path, options)
+}
+
+// Connect dials host:port over TCP and starts receiving.
 func Connect(ctx context.Context, address string, options *Options) (*Client, error) {
+	return dial(ctx, "tcp", address, options)
+}
+
+func dial(ctx context.Context, network, address string, options *Options) (*Client, error) {
 	opts := Options{}
 	if options != nil {
 		opts = *options
@@ -158,14 +173,14 @@ func Connect(ctx context.Context, address string, options *Options) (*Client, er
 	opts.withDefaults()
 
 	dialer := net.Dialer{Timeout: opts.DialTimeout}
-	conn, err := dialer.DialContext(ctx, "tcp", address)
+	conn, err := dialer.DialContext(ctx, network, address)
 	if err != nil {
-		return nil, fmt.Errorf("blackhole: dial %s: %w", address, err)
+		return nil, fmt.Errorf("blackhole: dial %s %s: %w", network, address, err)
 	}
 
 	if tcp, ok := conn.(*net.TCPConn); ok {
 		// BlackHole coalesces at the application layer, so letting the kernel hold small frames
-		// only adds latency.
+		// only adds latency. Unix sockets have no Nagle to disable.
 		_ = tcp.SetNoDelay(true)
 	}
 

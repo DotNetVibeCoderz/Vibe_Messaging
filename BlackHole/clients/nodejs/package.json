@@ -1,7 +1,7 @@
 {
   "name": "@gravicode/blackhole-messaging",
-  "version": "3.0.0",
-  "description": "Node.js client for BlackHole Messaging: RPC, Pub/Sub, Streaming and Batching over a binary TCP protocol.",
+  "version": "3.1.0",
+  "description": "Node.js client for BlackHole Messaging: RPC, Pub/Sub, Streaming and Batching over TCP, a Unix domain socket, or a named pipe.",
   "type": "module",
   "main": "./src/index.js",
   "exports": {
@@ -21,6 +21,9 @@
     "rpc",
     "pubsub",
     "tcp",
+    "ipc",
+    "named-pipe",
+    "unix-socket",
     "streaming",
     "batching",
     "iot",
