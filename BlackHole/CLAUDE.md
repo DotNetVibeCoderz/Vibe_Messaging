@@ -24,7 +24,9 @@ src/BlackHole/            the library (the only packable project)
 src/BlackHole.Demo/       console app exercising every pattern
 src/BlackHole.Benchmarks/ BenchmarkDotNet + a sustained-load harness
 src/BlackHole.IoTGateway/ Avalonia panel: a real gateway with simulated devices
-tests/BlackHole.Tests/    xunit, 40 tests
+tests/BlackHole.Tests/    xunit, 42 tests
+tests/BlackHole.InteropServer/  reference peer the client SDKs test against
+clients/{python,go,nodejs}/     client SDKs, each verified against that server
 docs/                     English; docs/id/ is Bahasa Indonesia
 ```
 
@@ -87,6 +89,11 @@ clients uploading the same stream id would corrupt each other through a shared `
 **Unsubscribe on disconnect.** `PubSubBroker.RemoveSubscriber` must be called or the subscriber list
 leaks for the process lifetime.
 
+**An RPC handler must not await a call on its own connection.** The receive loop awaits the handler,
+so the reply it waits for can never be delivered — the connection deadlocks. `RegisterDetached` runs
+the handler off the loop (copying the payload first) for exactly this case. Two tests in
+`EndToEndTests.cs` cover it.
+
 **Telemetry up, commands down — never both on one path.** Subscribing every gateway connection to a
 wildcard covering its own devices makes the broker fan readings back to all of them; each then
 blocks writing to peers that are blocked writing, and the whole thing deadlocks. This actually
@@ -112,6 +119,27 @@ UI property straight to the receive loop.
 
 The gateway binds `IPAddress.Loopback`, not `Any` — everything runs in-process, and binding Any
 triggers a Windows firewall prompt.
+
+## Client SDKs
+
+`clients/python`, `clients/go` and `clients/nodejs` each reimplement the wire format, so each is
+tested against `tests/BlackHole.InteropServer` — the real library — over a real socket, never a mock.
+A change to the frame layout means updating four codecs and running all four suites.
+
+```bash
+dotnet build tests/BlackHole.InteropServer -c Release   # once; suites fall back to `dotnet run`
+cd clients/python && python -m pytest tests/ -q
+cd clients/go     && go test ./blackhole/ -count=1
+cd clients/nodejs && node --test
+```
+
+Codec-only subsets need no .NET: `pytest tests/test_protocol.py`, `go test -short`,
+`node --test test/protocol.test.js`.
+
+**Clock resolution bites here.** On Windows, Go's `time.Now()` resolves to ~500 µs and Python's
+`time.monotonic()` to ~15 ms — both coarser than a loopback round trip, which then reads as zero.
+Use `perf_counter` in Python, `process.hrtime.bigint()` in Node, and Go's `PingAverage` when one
+probe is below the clock's granularity. A test asserting a single round trip is `> 0` will be flaky.
 
 ## Docs and benchmarks
 

@@ -40,6 +40,28 @@ string text = await client.CallTextAsync("upper", "halo");
 await client.NotifyAsync("log", entry);   // fire and forget, no reply expected
 ```
 
+### A handler that calls back
+
+A handler is awaited by the receive loop, which is what lets it read the payload without a copy. The
+cost is that the loop cannot deliver anything else while it runs — so a handler that calls back to
+the *same* client would wait for a reply only the blocked loop could hand it, and the connection
+would deadlock.
+
+`RegisterDetached` runs the handler off that loop:
+
+```csharp
+server.Rpc.RegisterDetached("callback", async (request, ct) =>
+{
+    // Safe here: this is not on the receive loop, so the reply can arrive.
+    string status = await caller.CallTextAsync("device/status", "?", cancellationToken: ct);
+    return Encoding.UTF8.GetBytes(status);
+});
+```
+
+It copies the payload up front and runs on the thread pool, so ordering against other messages on
+that connection is no longer guaranteed. Use it for the callback pattern and for genuinely long
+work; use `Register` for everything else.
+
 ### Failure is a first-class outcome
 
 | What happened | What the caller sees |

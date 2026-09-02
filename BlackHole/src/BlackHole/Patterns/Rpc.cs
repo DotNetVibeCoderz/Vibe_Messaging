@@ -46,17 +46,49 @@ public delegate ValueTask<ReadOnlyMemory<byte>> RpcHandler(RpcRequest request, C
 /// </remarks>
 public sealed class RpcServer
 {
-    private readonly ConcurrentDictionary<string, RpcHandler> _methods = new(StringComparer.Ordinal);
+    private sealed record Registration(RpcHandler Handler, bool Detached);
+
+    private readonly ConcurrentDictionary<string, Registration> _methods = new(StringComparer.Ordinal);
 
     /// <summary>Method names currently served.</summary>
     public ICollection<string> Methods => _methods.Keys;
 
-    /// <summary>Registers an asynchronous handler.</summary>
+    /// <summary>
+    /// Registers an asynchronous handler. It runs on the connection's receive loop, so it may read
+    /// <see cref="RpcRequest.Payload"/> in place - and must not wait on anything that needs another
+    /// message to arrive on that same connection. Use <see cref="RegisterDetached"/> when it does.
+    /// </summary>
     public RpcServer Register(string method, RpcHandler handler)
     {
         ArgumentException.ThrowIfNullOrEmpty(method);
         ArgumentNullException.ThrowIfNull(handler);
-        _methods[method] = handler;
+        _methods[method] = new Registration(handler, Detached: false);
+        return this;
+    }
+
+    /// <summary>
+    /// Registers a handler that runs off the receive loop, so it may await anything - including an
+    /// RPC call back to the very client that invoked it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A normal handler is awaited by the receive loop, which is what lets it read the payload
+    /// without a copy. The cost is that the loop cannot deliver anything else while it runs: a
+    /// handler that calls back to the same client would wait for a reply that only the blocked loop
+    /// could hand it, and the connection would deadlock.
+    /// </para>
+    /// <para>
+    /// A detached handler copies its payload up front and runs on the thread pool, so ordering
+    /// against other messages on the connection is no longer guaranteed. Use it for the callback
+    /// pattern and for genuinely long work; use <see cref="Register(string, RpcHandler)"/> for
+    /// everything else.
+    /// </para>
+    /// </remarks>
+    public RpcServer RegisterDetached(string method, RpcHandler handler)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(method);
+        ArgumentNullException.ThrowIfNull(handler);
+        _methods[method] = new Registration(handler, Detached: true);
         return this;
     }
 
@@ -91,13 +123,30 @@ public sealed class RpcServer
         if (message.Type != MessageType.RpcRequest)
             return;
 
-        if (!_methods.TryGetValue(message.Header, out RpcHandler? handler))
+        if (!_methods.TryGetValue(message.Header, out Registration? registration))
         {
             await ReplyErrorAsync(transport, message, $"Unknown method '{message.Header}'.", cancellationToken)
                 .ConfigureAwait(false);
             return;
         }
 
+        if (registration.Detached)
+        {
+            // The payload has to be copied: the receive loop reclaims its buffer as soon as this
+            // returns, and the handler now outlives that.
+            BlackHoleMessage owned = message.ToOwned();
+            _ = Task.Run(
+                () => InvokeAsync(transport, owned, registration.Handler, cancellationToken).AsTask(),
+                CancellationToken.None);
+            return;
+        }
+
+        await InvokeAsync(transport, message, registration.Handler, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask InvokeAsync(
+        ITransport transport, BlackHoleMessage message, RpcHandler handler, CancellationToken cancellationToken)
+    {
         ReadOnlyMemory<byte> result;
         try
         {

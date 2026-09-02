@@ -40,6 +40,28 @@ string teks = await client.CallTextAsync("upper", "halo");
 await client.NotifyAsync("log", catatan);   // kirim lalu lupakan, tanpa balasan
 ```
 
+### Handler yang memanggil balik
+
+Sebuah handler ditunggu oleh loop baca, dan itulah yang membuatnya bisa membaca payload tanpa
+salinan. Konsekuensinya, loop itu tidak bisa mengantarkan apa pun selama handler berjalan — jadi
+handler yang memanggil balik client yang *sama* akan menunggu balasan yang hanya bisa diantar oleh
+loop yang sedang tertahan itu, dan koneksinya macet total.
+
+`RegisterDetached` menjalankan handler di luar loop tersebut:
+
+```csharp
+server.Rpc.RegisterDetached("callback", async (request, ct) =>
+{
+    // Aman di sini: ini bukan di loop baca, jadi balasannya bisa sampai.
+    string status = await caller.CallTextAsync("device/status", "?", cancellationToken: ct);
+    return Encoding.UTF8.GetBytes(status);
+});
+```
+
+Handler ini menyalin payload-nya lebih dulu dan berjalan di thread pool, jadi urutannya terhadap
+pesan lain di koneksi itu tidak lagi dijamin. Gunakan untuk pola panggil-balik dan untuk pekerjaan
+yang memang lama; gunakan `Register` untuk selebihnya.
+
 ### Kegagalan adalah hasil yang setara
 
 | Yang terjadi | Yang dilihat pemanggil |

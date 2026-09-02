@@ -1,0 +1,40 @@
+{
+  "name": "@gravicode/blackhole-messaging",
+  "version": "3.0.0",
+  "description": "Node.js client for BlackHole Messaging: RPC, Pub/Sub, Streaming and Batching over a binary TCP protocol.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./protocol": "./src/protocol.js"
+  },
+  "files": ["src/", "README.md"],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test",
+    "test:protocol": "node --test test/protocol.test.js"
+  },
+  "keywords": [
+    "messaging",
+    "rpc",
+    "pubsub",
+    "tcp",
+    "streaming",
+    "batching",
+    "iot",
+    "binary-protocol"
+  ],
+  "author": "Gravicode Studios",
+  "license": "MIT",
+  "homepage": "https://github.com/DotNetVibeCoderz/Vibe_Messaging/tree/main/BlackHole",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DotNetVibeCoderz/Vibe_Messaging.git",
+    "directory": "BlackHole/clients/nodejs"
+  },
+  "bugs": {
+    "url": "https://github.com/DotNetVibeCoderz/Vibe_Messaging/issues"
+  }
+}

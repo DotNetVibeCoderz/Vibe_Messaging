@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "blackhole-messaging"
+version = "3.0.0"
+description = "Python client for BlackHole Messaging: RPC, Pub/Sub, Streaming and Batching over a binary TCP protocol."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Gravicode Studios" }]
+keywords = ["messaging", "rpc", "pubsub", "tcp", "streaming", "batching", "iot", "asyncio"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Networking",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/DotNetVibeCoderz/Vibe_Messaging/tree/main/BlackHole"
+Repository = "https://github.com/DotNetVibeCoderz/Vibe_Messaging"
+Documentation = "https://github.com/DotNetVibeCoderz/Vibe_Messaging/tree/main/BlackHole/docs"
+
+[project.optional-dependencies]
+test = ["pytest>=8.0", "pytest-asyncio>=0.24"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["blackhole"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

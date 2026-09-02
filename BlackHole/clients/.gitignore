@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.venv/
+build/
+dist/
+
+# Node.js
+node_modules/
+package-lock.json

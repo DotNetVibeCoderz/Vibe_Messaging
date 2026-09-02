@@ -289,6 +289,59 @@ public class EndToEndTests : IAsyncLifetime
         Assert.Equal("ok:tank-3", status);
     }
 
+    /// <summary>
+    /// A normal handler is awaited by the receive loop, so one that calls back to the same client
+    /// would block the very loop that must deliver its reply. RegisterDetached runs the handler off
+    /// that loop; without it this test hangs until the call's deadline.
+    /// </summary>
+    [Fact]
+    public async Task ADetachedHandlerCanCallBackIntoTheCallingClient()
+    {
+        _server.Rpc.RegisterDetached("callback", async (request, ct) =>
+        {
+            BlackHoleConnection connection = _server.Connections.First(c => c.Transport == request.Transport);
+            var caller = new RpcClient(connection.Transport) { DefaultTimeout = TimeSpan.FromSeconds(5) };
+            connection.Router.On(MessageType.RpcResponse, caller.HandleAsync);
+            try
+            {
+                string reply = await caller.CallTextAsync("client/identify", request.Text(), cancellationToken: ct);
+                return Encoding.UTF8.GetBytes(reply);
+            }
+            finally
+            {
+                caller.Dispose();
+            }
+        });
+
+        await using BlackHoleClient client = await ConnectAsync();
+        client.Handlers.RegisterText("client/identify", question => $"tank-3 says {question}");
+
+        string answer = await client.Rpc.CallTextAsync("callback", "hello", TimeSpan.FromSeconds(10));
+
+        Assert.Equal("tank-3 says hello", answer);
+    }
+
+    /// <summary>A detached handler still reads its payload correctly, despite the buffer being reclaimed.</summary>
+    [Fact]
+    public async Task ADetachedHandlerSeesItsPayloadAfterTheBufferIsReclaimed()
+    {
+        _server.Rpc.RegisterDetached("slow-echo", async (request, ct) =>
+        {
+            byte[] captured = request.Payload.ToArray();
+            await Task.Delay(150, ct);
+            // If the payload were not copied on the way in, these would differ by now.
+            Assert.Equal(captured, request.Payload.ToArray());
+            return request.Payload;
+        });
+
+        await using BlackHoleClient client = await ConnectAsync();
+        byte[] payload = Enumerable.Range(0, 4096).Select(i => (byte)(i % 251)).ToArray();
+
+        byte[] result = await client.Rpc.CallAsync("slow-echo", payload, TimeSpan.FromSeconds(10));
+
+        Assert.Equal(payload, result);
+    }
+
     [Fact]
     public async Task StatisticsCountBothDirections()
     {

@@ -80,7 +80,23 @@ Full numbers, method, and how to reproduce them: **[docs/benchmarks.md](docs/ben
 ```bash
 dotnet run --project src/BlackHole.Demo          # every pattern, end to end
 dotnet run --project src/BlackHole.IoTGateway    # the Avalonia gateway panel
-dotnet test tests/BlackHole.Tests                # 40 tests
+dotnet test tests/BlackHole.Tests                # 42 tests
+```
+
+### Client SDKs
+
+Python, Go and Node.js clients speak the same protocol, and each is tested against the real .NET
+server rather than a mock — see [clients/](clients/).
+
+```bash
+pip install blackhole-messaging
+go get github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go
+npm install @gravicode/blackhole-messaging
+```
+
+```python
+async with await connect("127.0.0.1", 5000) as client:
+    print(await client.call_text("upper", "halo blackhole"))
 ```
 
 ### The IoT Gateway simulator
@@ -110,6 +126,7 @@ calls RPC methods back down the same connection the device dialled out on, and *
 | [Benchmarks](docs/benchmarks.md) | Full results and how to reproduce them |
 | [IoT Gateway](docs/iot-gateway.md) | The simulator, and what it demonstrates |
 | [Migrating from v2](docs/migration-v2.md) | What changed and why |
+| [Client SDKs](clients/) | Python, Go and Node.js clients |
 
 Bahasa Indonesia: [docs/id/](docs/id/).
 
@@ -178,7 +195,18 @@ Angka lengkap, metode pengukuran, dan cara mengulanginya: **[docs/benchmarks.md]
 ```bash
 dotnet run --project src/BlackHole.Demo          # semua pola, dari ujung ke ujung
 dotnet run --project src/BlackHole.IoTGateway    # panel gateway Avalonia
-dotnet test tests/BlackHole.Tests                # 40 tes
+dotnet test tests/BlackHole.Tests                # 42 tes
+```
+
+### SDK Klien
+
+Klien Python, Go, dan Node.js berbicara protokol yang sama, dan masing-masing diuji terhadap server
+.NET sungguhan — bukan tiruan. Lihat [clients/](clients/).
+
+```bash
+pip install blackhole-messaging
+go get github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go
+npm install @gravicode/blackhole-messaging
 ```
 
 ### Simulator IoT Gateway
