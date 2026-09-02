@@ -17,7 +17,7 @@
  * @module
  */
 
-export { BlackHoleClient, connect } from './client.js';
+export { BlackHoleClient, connect, connectIpc, resolveIpcPath } from './client.js';
 export {
   DEFAULT_MAX_FRAME_LENGTH,
   FIXED_HEADER_SIZE,

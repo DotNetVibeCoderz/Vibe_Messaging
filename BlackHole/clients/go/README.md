@@ -18,6 +18,25 @@ go get github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go
 import bh "github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/blackhole"
 ```
 
+## Transports
+
+TCP everywhere, plus Unix domain sockets on Linux, macOS, and Windows 10 build 17063 or later:
+
+```go
+client, err := bh.Connect(ctx, "127.0.0.1:5000", nil)              // TCP
+client, err := bh.ConnectUnix(ctx, "/tmp/blackhole.sock", nil)     // Unix domain socket
+```
+
+Both carry the same wire format; only the connection setup differs. Named pipes would need a
+third-party package on Windows, and shared memory needs a mapped segment plus a dedicated polling
+thread — both are .NET-only. See [docs/transports.md](../../docs/transports.md).
+
+Compare them yourself:
+
+```bash
+go run ./example/benchmark
+```
+
 ## Thirty seconds
 
 ```go

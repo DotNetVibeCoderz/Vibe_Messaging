@@ -20,6 +20,25 @@ Or from this repository:
 cd BlackHole/clients/python && pip install -e .
 ```
 
+## Transports
+
+TCP everywhere, plus Unix domain sockets on Linux and macOS:
+
+```python
+client = await connect("127.0.0.1", 5000)                  # TCP
+client = await connect_unix("/tmp/blackhole.sock")         # Unix domain socket
+```
+
+Both carry the same wire format; only the connection setup differs. CPython exposes no `AF_UNIX`
+to asyncio on Windows, so `connect_unix` raises there — check `BlackHoleClient.unix_supported()`.
+Named pipes and shared memory are .NET-only; see [docs/transports.md](../../docs/transports.md).
+
+Compare them yourself:
+
+```bash
+PYTHONPATH=. python example/benchmark.py
+```
+
 ## Thirty seconds
 
 ```python

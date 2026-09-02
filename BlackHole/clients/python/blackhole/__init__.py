@@ -15,7 +15,7 @@ TCP. Speaks the same wire format as the .NET library, verified against it by the
     asyncio.run(main())
 """
 
-from .client import BlackHoleClient, Statistics, connect
+from .client import BlackHoleClient, Statistics, connect, connect_unix
 from .protocol import (
     DEFAULT_MAX_FRAME_LENGTH,
     Message,
@@ -29,12 +29,13 @@ from .protocol import (
     topic_matches,
 )
 
-__version__ = "3.0.0"
+__version__ = "3.1.0"
 
 __all__ = [
     "BlackHoleClient",
     "Statistics",
     "connect",
+    "connect_unix",
     "Message",
     "MessageType",
     "MessageFlags",

@@ -55,35 +55,36 @@ public sealed class NamedPipeListenerHost : IListenerHost
     public event Action<ITransport, Exception?>? TransportDisconnected;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The first pipe instance is created here, synchronously, before this returns. Creating it
+    /// inside the accept loop instead left a window where the pipe did not yet exist and a client
+    /// connecting immediately got ENOENT - the same class of race as delivering messages before a
+    /// dispatcher is installed. A TCP listener binds in its constructor and never has this problem.
+    /// </remarks>
     public void Start(int backlog = 512)
     {
-        _acceptLoop = Task.Run(() => AcceptLoopAsync(_shutdown.Token));
+        NamedPipeServerStream first = CreateInstance();
+        _acceptLoop = Task.Run(() => AcceptLoopAsync(first, _shutdown.Token));
     }
 
-    private async Task AcceptLoopAsync(CancellationToken cancellationToken)
+    /// <summary>One unconnected server instance, ready for the next client.</summary>
+    private NamedPipeServerStream CreateInstance() =>
+        new(
+            _pipeName,
+            PipeDirection.InOut,
+            MaxServerInstances,
+            // Byte mode: BlackHole frames its own messages, and message mode would impose a
+            // second, redundant framing on top.
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous | PipeOptions.WriteThrough,
+            inBufferSize: _options.ReceiveBufferSize,
+            outBufferSize: _options.SendBufferSize);
+
+    private async Task AcceptLoopAsync(NamedPipeServerStream pending, CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            NamedPipeServerStream pipe;
-            try
-            {
-                pipe = new NamedPipeServerStream(
-                    _pipeName,
-                    PipeDirection.InOut,
-                    MaxServerInstances,
-                    // Byte mode: BlackHole frames its own messages, and message mode would impose a
-                    // second, redundant framing on top.
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous | PipeOptions.WriteThrough,
-                    inBufferSize: _options.ReceiveBufferSize,
-                    outBufferSize: _options.SendBufferSize);
-            }
-            catch (Exception ex)
-            {
-                _options.ErrorHandler?.Invoke(ex);
-                await Task.Delay(100, cancellationToken).ConfigureAwait(false);
-                continue;
-            }
+            NamedPipeServerStream pipe = pending;
 
             try
             {
@@ -98,12 +99,34 @@ public sealed class NamedPipeListenerHost : IListenerHost
             {
                 _options.ErrorHandler?.Invoke(ex);
                 await pipe.DisposeAsync().ConfigureAwait(false);
-                continue;
+                try
+                {
+                    pending = CreateInstance();
+                    continue;
+                }
+                catch (Exception createEx)
+                {
+                    _options.ErrorHandler?.Invoke(createEx);
+                    return;
+                }
+            }
+
+            // Put the next instance in place before handling this one, so there is never a moment
+            // when the pipe name has no listener waiting on it.
+            try
+            {
+                pending = CreateInstance();
+            }
+            catch (Exception ex)
+            {
+                _options.ErrorHandler?.Invoke(ex);
+                pending = null!;
             }
 
             if (_connections.Count >= MaxConnections)
             {
                 await pipe.DisposeAsync().ConfigureAwait(false);
+                if (pending is null) return;
                 continue;
             }
 
@@ -125,6 +148,9 @@ public sealed class NamedPipeListenerHost : IListenerHost
                 _options.ErrorHandler?.Invoke(ex);
                 await transport.DisposeAsync().ConfigureAwait(false);
             }
+
+            if (pending is null)
+                return;
         }
     }
 

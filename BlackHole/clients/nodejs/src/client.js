@@ -59,6 +59,11 @@ export class BlackHoleClient extends EventEmitter {
       lastRoundTrip: null,
     };
 
+    /** "pipe" or "unix" for local IPC, "tcp" otherwise. */
+    this.transportKind = options.path
+      ? (process.platform === 'win32' ? 'pipe' : 'unix')
+      : 'tcp';
+
     this._buffer = Buffer.alloc(0);
     this._pending = new Map();
     this._correlation = 0;
@@ -80,27 +85,34 @@ export class BlackHoleClient extends EventEmitter {
   /**
    * Dial a server and start receiving.
    *
+   * Pass `port` for TCP, or `path` for local IPC - a named pipe on Windows, a Unix domain socket
+   * elsewhere. Both carry the same wire format; only the connection setup differs.
+   *
    * `configure` runs after the client is built but **before** the read loop delivers anything, so
    * handlers registered there cannot miss a message a server pushes the instant it accepts.
    * Registering after this resolves is a race for that first message.
    *
-   * @param {{ host?: string, port: number, dialTimeout?: number, maxFrameLength?: number,
-   *           callTimeout?: number, flushThreshold?: number,
+   * @param {{ host?: string, port?: number, path?: string, dialTimeout?: number,
+   *           maxFrameLength?: number, callTimeout?: number, flushThreshold?: number,
    *           configure?: (client: BlackHoleClient) => void }} options
    * @returns {Promise<BlackHoleClient>}
    */
   static connect(options) {
-    const { host = '127.0.0.1', port, dialTimeout = 10_000, configure, ...rest } = options;
+    const { host = '127.0.0.1', port, path, dialTimeout = 10_000, configure, ...rest } = options;
 
     return new Promise((resolve, reject) => {
-      const socket = net.createConnection({ host, port });
+      // `path` selects the platform's local IPC primitive: a named pipe on Windows, a Unix domain
+      // socket everywhere else. Node's net module handles both behind the same option, and the
+      // wire format is identical either way.
+      const socket = path ? net.createConnection({ path }) : net.createConnection({ host, port });
       // BlackHole coalesces at the application layer, so letting the kernel hold small frames only
       // adds latency.
       socket.setNoDelay(true);
 
+      const target = path ?? `${host}:${port}`;
       const timer = setTimeout(() => {
         socket.destroy();
-        reject(new Error(`blackhole: connecting to ${host}:${port} timed out after ${dialTimeout}ms`));
+        reject(new Error(`blackhole: connecting to ${target} timed out after ${dialTimeout}ms`));
       }, dialTimeout);
 
       socket.once('error', (error) => {
@@ -111,7 +123,7 @@ export class BlackHoleClient extends EventEmitter {
       socket.once('connect', () => {
         clearTimeout(timer);
         socket.removeAllListeners('error');
-        const client = new BlackHoleClient(socket, rest);
+        const client = new BlackHoleClient(socket, { ...rest, path });
         if (configure) configure(client);
         resolve(client);
       });
@@ -680,4 +692,34 @@ function* chunkBuffer(buffer, size) {
  */
 export function connect(options) {
   return BlackHoleClient.connect(options);
+}
+
+/**
+ * Connect over local IPC: a named pipe on Windows, a Unix domain socket elsewhere.
+ *
+ * On Windows a bare name is expanded to the full pipe path, so the same string works on both
+ * sides regardless of platform.
+ *
+ * @param {string} path Socket path, or a pipe name on Windows.
+ * @param {Omit<Parameters<typeof BlackHoleClient.connect>[0], 'host' | 'port' | 'path'>} [options]
+ */
+export function connectIpc(path, options = {}) {
+  return BlackHoleClient.connect({ ...options, path: resolveIpcPath(path) });
+}
+
+/**
+ * Expands a bare pipe name to the full Windows pipe path, and leaves everything else alone.
+ *
+ * Exported so a server-side harness can build the same address the client will dial.
+ *
+ * @param {string} path Socket path, or a pipe name on Windows.
+ * @returns {string}
+ */
+export function resolveIpcPath(path) {
+  if (process.platform !== 'win32') return path;
+
+  // The literal prefix is \\.\pipe\ - four escaped backslashes for the leading \\, then \pipe\.
+  // Built from character escapes rather than String.raw, which cannot end in a backslash.
+  const prefix = '\\\\.\\pipe\\';
+  return path.startsWith('\\\\') ? path : prefix + path;
 }

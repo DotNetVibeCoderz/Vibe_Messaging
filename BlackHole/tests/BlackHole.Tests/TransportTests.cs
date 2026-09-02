@@ -238,6 +238,26 @@ public abstract class TransportContractTests : IAsyncLifetime
         }
     }
 
+    /// <summary>
+    /// A client connecting the instant Start returns must find the endpoint already there.
+    /// </summary>
+    /// <remarks>
+    /// The named pipe listener used to create its first pipe instance inside the accept loop, so
+    /// Start returned before the pipe existed and an immediate connect got ENOENT. TCP binds in its
+    /// constructor and never had the problem, which is exactly why this belongs in the shared
+    /// contract rather than one transport's tests.
+    /// </remarks>
+    [Fact]
+    public async Task AClientConnectingImmediatelyAfterStartSucceeds()
+    {
+        if (UnsupportedReason is not null) return;
+
+        // The fixture already started the listener; connect with no delay at all.
+        await using BlackHoleClient client = await ConnectAsync();
+
+        Assert.Equal("HALO", await client.Rpc.CallTextAsync("upper", "halo", TimeSpan.FromSeconds(20)));
+    }
+
     [Fact]
     public void TheServerReportsItsEndpoint()
     {

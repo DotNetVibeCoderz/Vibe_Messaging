@@ -14,6 +14,33 @@ the wire format independently and is verified against the real .NET server, not 
 All three cover RPC (both directions), Pub/Sub with `+` and `#` wildcards, Streaming, Batching,
 keepalive, and per-connection statistics.
 
+## Transports
+
+| | TCP | Unix socket | Named pipe | Shared memory |
+|---|:---:|:---:|:---:|:---:|
+| .NET | ✅ | ✅ | ✅ | ✅ |
+| Python | ✅ | ✅ *(not on Windows)* | — | — |
+| Go | ✅ | ✅ | — | — |
+| Node.js | ✅ | ✅ | ✅ | — |
+
+Every SDK speaks TCP plus whatever local IPC its runtime offers natively, and the wire format is
+identical across all of them — a Node client on a named pipe talks to the same .NET server as a Go
+client on a Unix socket.
+
+The gaps are deliberate rather than unfinished. Python's asyncio has no named-pipe client and no
+`AF_UNIX` on Windows; Go would need a third-party package for named pipes. **Shared memory is
+.NET-only** — it needs a mapped segment and a dedicated polling thread, which none of these three
+can offer without native code. Use it where the latency matters and .NET is on both ends; see
+[docs/transports.md](../docs/transports.md).
+
+Each SDK ships a benchmark that measures its transports against the same .NET server:
+
+```bash
+cd clients/python  && PYTHONPATH=. python example/benchmark.py
+cd clients/go      && go run ./example/benchmark
+cd clients/nodejs  && node example/benchmark.js
+```
+
 ## The same program, three times
 
 ```python
