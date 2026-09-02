@@ -29,6 +29,9 @@ dotnet add package BlackHole.Messaging
 > The id `BlackHole` was already taken on nuget.org, so the package ships as **BlackHole.Messaging**.
 > The assembly and every namespace are still `BlackHole.*`.
 
+Current release: **3.1.0** — adds Unix domain sockets, named pipes and shared memory alongside TCP.
+See the [changelog](CHANGELOG.md).
+
 ### Thirty seconds
 
 ```csharp
@@ -145,6 +148,7 @@ calls RPC methods back down the same connection the device dialled out on, and *
 | [IoT Gateway](docs/iot-gateway.md) | The simulator, and what it demonstrates |
 | [Migrating from v2](docs/migration-v2.md) | What changed and why |
 | [Transports](docs/transports.md) | TCP, Unix sockets, named pipes, shared memory |
+| [Changelog](CHANGELOG.md) | What changed in each release |
 | [Client SDKs](clients/) | Python, Go and Node.js clients |
 
 Bahasa Indonesia: [docs/id/](docs/id/).
@@ -162,6 +166,9 @@ dotnet add package BlackHole.Messaging
 
 > Nama `BlackHole` sudah dipakai orang lain di nuget.org, jadi paket ini bernama
 > **BlackHole.Messaging**. Nama assembly dan seluruh namespace tetap `BlackHole.*`.
+
+Rilis terkini: **3.1.0** — menambahkan Unix domain socket, named pipe, dan shared memory di samping
+TCP. Lihat [changelog](CHANGELOG.md).
 
 ### Tiga puluh detik
 

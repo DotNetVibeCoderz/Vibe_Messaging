@@ -18,8 +18,8 @@
          as BlackHole.Messaging. Assembly and namespaces stay BlackHole.*. -->
     <PackageId>BlackHole.Messaging</PackageId>
     <Title>BlackHole Messaging</Title>
-    <Description>High-performance, allocation-conscious network messaging for .NET 10. A length-prefixed binary protocol over TCP with RPC, Pub/Sub, Streaming and Batching built on System.IO.Pipelines. Built by Gravicode Studios, led by Kang Fadhil.</Description>
-    <PackageTags>messaging;rpc;pubsub;tcp;streaming;batching;pipelines;high-performance;iot;sockets;binary-protocol</PackageTags>
+    <Description>High-performance, allocation-conscious messaging for .NET 10. A length-prefixed binary protocol with RPC, Pub/Sub, Streaming and Batching, built on System.IO.Pipelines, over TCP, Unix domain sockets, named pipes or shared memory. Built by Gravicode Studios, led by Kang Fadhil.</Description>
+    <PackageTags>messaging;rpc;pubsub;tcp;ipc;shared-memory;unix-socket;named-pipe;streaming;batching;pipelines;high-performance;iot;sockets;binary-protocol</PackageTags>
     <PackageProjectUrl>https://github.com/DotNetVibeCoderz/Vibe_Messaging/tree/main/BlackHole</PackageProjectUrl>
     <RepositoryUrl>https://github.com/DotNetVibeCoderz/Vibe_Messaging/tree/main/BlackHole</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -27,7 +27,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageReleaseNotes>v3.0.0 - Rewritten on System.IO.Pipelines: zero-allocation steady-state framing, pooled buffers, async message router, RPC timeouts and error propagation, keepalive, auto-flush batching, and connection statistics. Targets .NET 10.</PackageReleaseNotes>
+    <PackageReleaseNotes>v3.1.0 - Adds three same-machine transports alongside TCP: Unix domain sockets, named pipes, and shared memory. All four carry the same wire format through the same patterns, so switching is one line. Shared memory measures 3.2us RPC round trips, 18x faster than loopback TCP. Also adds RpcServer.RegisterDetached for handlers that call back on their own connection, and a configure callback on BlackHoleClient.ConnectAsync so handlers are registered before the first message arrives. No breaking changes.</PackageReleaseNotes>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -37,6 +37,7 @@
 
   <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="\" />
+    <None Include="../../CHANGELOG.md" Pack="true" PackagePath="\" />
     <None Include="../../assets/icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 

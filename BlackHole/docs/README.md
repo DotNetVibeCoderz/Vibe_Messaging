@@ -15,6 +15,7 @@
 | [Benchmarks](benchmarks.md) | Full results and how to reproduce them |
 | [IoT Gateway](iot-gateway.md) | The Avalonia simulator, and what it demonstrates |
 | [Migrating from v2](migration-v2.md) | What changed and why |
+| [Changelog](../CHANGELOG.md) | What changed in each release |
 | [Client SDKs](../clients/) | Python, Go and Node.js clients, and how interop is tested |
 
 ## Bahasa Indonesia
