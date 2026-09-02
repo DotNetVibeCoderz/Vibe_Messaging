@@ -8,7 +8,14 @@ name: BlackHole CI
 
 on:
   push:
+    # A release is cut by pushing a vX.Y.Z tag, so tags must trigger this workflow - without them
+    # the publish job below is unreachable and a release tag silently does nothing.
+    #
+    # The path filter applies to tag pushes as well as branch pushes, which is fine here because a
+    # release tag always lands on a commit that touched BlackHole/. It also keeps pushes that only
+    # touch the sibling projects in this repository from running this workflow at all.
     branches: [main]
+    tags: ['v*']
     paths:
       - 'BlackHole/**'
       - '.github/workflows/blackhole-ci.yml'
