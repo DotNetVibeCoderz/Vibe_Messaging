@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Nerve</RootNamespace>
+    <AssemblyName>Nerve</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <!-- ============================ NuGet package ============================ -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Nerve</PackageId>
+    <Title>Nerve</Title>
+    <Description>In-process publish/subscribe for .NET 10, shaped like MQTT and as fast as a method call. Topics with + and # wildcards, retained messages, request/reply, async streams and per-route statistics - with no boxing, no locks and no allocation on the publish path. Built by Gravicode Studios, led by Kang Fadhil.</Description>
+    <PackageTags>pubsub;publish-subscribe;messaging;event-bus;mediator;in-memory;mqtt;wildcards;request-reply;high-performance;low-allocation;zero-allocation;dotnet10</PackageTags>
+    <PackageProjectUrl>https://github.com/DotNetVibeCoderz/Vibe_Messaging/tree/main/Nerve</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/DotNetVibeCoderz/Vibe_Messaging/tree/main/Nerve</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryBranch>main</RepositoryBranch>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes>v2.0.0 - Rewritten for throughput and memory: typed routes resolved once per topic (no boxing, no casts), copy-on-write subscriber arrays read without a lock, and a dispatch loop that allocates nothing until a handler actually suspends. Adds MQTT-style + and # wildcards, retained messages, request/reply, IAsyncEnumerable streams with drop-oldest buffering, per-route statistics, error isolation and pre-resolved topic handles. Targets .NET 10.</PackageReleaseNotes>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="\" />
+    <None Include="../../assets/icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nerve.Tests" />
+    <InternalsVisibleTo Include="Nerve.Benchmarks" />
+  </ItemGroup>
+
+</Project>

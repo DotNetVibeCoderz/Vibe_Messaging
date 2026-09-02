@@ -1,0 +1,30 @@
+<Project>
+
+  <!-- ================================================================
+       Nerve - in-process messaging
+       Built by Gravicode Studios, led by Kang Fadhil.
+       https://github.com/DotNetVibeCoderz/Vibe_Messaging/tree/main/Nerve
+       ================================================================ -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Product>Nerve</Product>
+    <Company>Gravicode Studios</Company>
+    <Authors>Gravicode Studios</Authors>
+    <Copyright>Copyright (c) Gravicode Studios. Led by Kang Fadhil.</Copyright>
+    <VersionPrefix>2.0.0</VersionPrefix>
+    <RepositoryUrl>https://github.com/DotNetVibeCoderz/Vibe_Messaging</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+</Project>

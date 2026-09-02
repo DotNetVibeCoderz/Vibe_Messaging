@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Nerve.Demo</RootNamespace>
+    <AssemblyName>Nerve.Demo</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Nerve/Nerve.csproj" />
+  </ItemGroup>
+
+</Project>

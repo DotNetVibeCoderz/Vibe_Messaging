@@ -1,0 +1,30 @@
+
+Sustained load - 5,000,000 messages per run
+  .NET 10.0.11, 8 logical cores
+
+
+  Fan-out: one topic, N subscribers, single publisher
+  ---------------------------------------------------
+      1 subscriber(s)              47,166,741 msg/s      21.2 ns/msg        376 B alloc     0 gen0   10,000,000 deliveries
+      2 subscriber(s)              30,346,085 msg/s      33.0 ns/msg        376 B alloc     0 gen0   20,000,000 deliveries
+      8 subscriber(s)              11,921,486 msg/s      83.9 ns/msg        376 B alloc     0 gen0   80,000,000 deliveries
+     32 subscriber(s)               3,331,199 msg/s     300.2 ns/msg        376 B alloc     0 gen0   320,000,000 deliveries
+
+  Against v1: one topic, one subscriber
+  -------------------------------------
+    v1  Publish(topic, value)      14,127,343 msg/s      70.8 ns/msg     267.0 MB alloc    66 gen0   10,000,000 received
+    v2  Publish(topic, value)      30,839,887 msg/s      32.4 ns/msg        376 B alloc     0 gen0   10,000,000 received
+    v2  handle.Publish(value)      47,524,903 msg/s      21.0 ns/msg        376 B alloc     0 gen0
+
+  Concurrent publishers, one topic each
+  -------------------------------------
+    8 publishers                   24,581,186 msg/s      40.7 ns/msg       4.2 KB alloc     0 gen0   10,000,000 deliveries
+
+  Wildcard routing
+  ----------------
+    exact subscriber               46,158,078 msg/s      21.7 ns/msg        664 B alloc     0 gen0
+    one wildcard subscriber        42,861,723 msg/s      23.3 ns/msg        664 B alloc     0 gen0   10,000,000 deliveries
+
+  Route resolution (first publish to a new topic)
+  -----------------------------------------------
+    100,000 distinct topics         3,772,902 msg/s     265.0 ns/msg       5.3 MB alloc     0 gen0

@@ -1,0 +1,46 @@
+Nerve micro-benchmarks - BenchmarkDotNet, default job
+Gravicode Studios, led by Kang Fadhil.
+
+
+BenchmarkDotNet v0.15.8, Windows 11 (10.0.26200.9168/25H2/2025Update/HudsonValley2)
+Intel Core i7-8650U CPU 1.90GHz (Max: 2.11GHz) (Kaby Lake R), 1 CPU, 8 logical and 4 physical cores
+.NET SDK 10.0.400
+  [Host]     : .NET 10.0.11 (10.0.11, 10.0.1126.37416), X64 RyuJIT x86-64-v3
+  DefaultJob : .NET 10.0.11 (10.0.11, 10.0.1126.37416), X64 RyuJIT x86-64-v3
+
+
+
+## DispatchBenchmarks
+
+| Method             | Subscribers | Mean      | Ratio | Gen0   | Allocated | Alloc Ratio |
+|------------------- |------------ |----------:|------:|-------:|----------:|------------:|
+| **Legacy**             | **0**           |  **19.91 ns** |  **1.00** |      **-** |         **-** |          **NA** |
+| ByName             | 0           |  40.94 ns |  2.06 |      - |         - |          NA |
+| ByNameNoStatistics | 0           |  31.37 ns |  1.58 |      - |         - |          NA |
+| ByHandle           | 0           |  16.25 ns |  0.82 |      - |         - |          NA |
+|                    |             |           |       |        |           |             |
+| **Legacy**             | **1**           |  **68.38 ns** |  **1.00** | **0.0153** |      **64 B** |        **1.00** |
+| ByName             | 1           |  43.20 ns |  0.63 |      - |         - |        0.00 |
+| ByNameNoStatistics | 1           |  41.76 ns |  0.61 |      - |         - |        0.00 |
+| ByHandle           | 1           |  22.34 ns |  0.33 |      - |         - |        0.00 |
+|                    |             |           |       |        |           |             |
+| **Legacy**             | **8**           | **236.21 ns** |  **1.00** | **0.0823** |     **344 B** |        **1.00** |
+| ByName             | 8           | 107.80 ns |  0.46 |      - |         - |        0.00 |
+| ByNameNoStatistics | 8           |  78.69 ns |  0.33 |      - |         - |        0.00 |
+| ByHandle           | 8           |  85.18 ns |  0.36 |      - |         - |        0.00 |
+
+## PatternBenchmarks
+
+| Method                  | Mean     | Gen0   | Allocated |
+|------------------------ |---------:|-------:|----------:|
+| RequestReply            | 120.0 ns | 0.0496 |     208 B |
+| SubscribeAndUnsubscribe | 211.2 ns | 0.0610 |     256 B |
+
+## WildcardBenchmarks
+
+| Method                 | Mean     | Ratio | Allocated | Alloc Ratio |
+|----------------------- |---------:|------:|----------:|------------:|
+| ExactSubscriber        | 40.89 ns |  1.00 |         - |          NA |
+| TwoWildcardSubscribers | 49.63 ns |  1.21 |         - |          NA |
+| MatchOnly              | 37.20 ns |  0.91 |         - |          NA |
+
