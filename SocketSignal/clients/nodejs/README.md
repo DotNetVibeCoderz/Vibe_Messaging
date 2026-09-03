@@ -5,11 +5,14 @@
 Bidirectional RPC over WebSockets. No dependencies: Node 22 ships a global `WebSocket`.
 
 ```bash
+npm install @gravicode/socketsignal
+
+# run the example from a checkout
 node example.mjs        # needs a server: dotnet run --project ../../src/SocketSignal.Demo -- serve
 ```
 
 ```javascript
-import { SocketSignalClient } from "socketsignal";
+import { SocketSignalClient } from "@gravicode/socketsignal";
 
 const client = new SocketSignalClient({ callTimeoutMs: 10_000, autoReconnect: true });
 

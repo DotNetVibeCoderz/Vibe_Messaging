@@ -7,3 +7,9 @@ node_modules/
 
 # Claude Code local skills/config, kept out of the repo like the sibling projects
 .claude/
+
+# Client SDK build output
+dist/
+build/
+*.egg-info/
+*.tgz

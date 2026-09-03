@@ -5,6 +5,9 @@
 Bidirectional RPC over WebSockets, on asyncio.
 
 ```bash
+pip install socketsignal
+
+# run the example from a checkout
 pip install websockets
 python example.py       # needs a server: dotnet run --project ../../src/SocketSignal.Demo -- serve
 ```

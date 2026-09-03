@@ -9,7 +9,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/DotNetVibeCoderz/Vibe_Messaging/SocketSignal/clients/go/socketsignal"
+	"github.com/DotNetVibeCoderz/Vibe_Messaging/SocketSignal/clients/go/v2/socketsignal"
 )
 
 func main() {

@@ -24,6 +24,9 @@ That registers `sum`, `echo`, `join` and `explode` on `ws://localhost:8080/ws/` 
 Requires Python 3.10+ and the `websockets` package.
 
 ```bash
+pip install socketsignal
+
+# or run the example from a checkout
 cd clients/python
 pip install websockets
 python example.py
@@ -74,12 +77,15 @@ asyncio.run(main())
 No dependencies: Node 22 ships a global `WebSocket`.
 
 ```bash
+npm install @gravicode/socketsignal
+
+# or run the example from a checkout
 cd clients/nodejs
 node example.mjs
 ```
 
 ```javascript
-import { SocketSignalClient, SignalInvocationError } from "socketsignal";
+import { SocketSignalClient, SignalInvocationError } from "@gravicode/socketsignal";
 
 const client = new SocketSignalClient({ callTimeoutMs: 10_000 });
 
@@ -120,6 +126,9 @@ client.close();
 Requires Go 1.22+ and `github.com/coder/websocket`.
 
 ```bash
+go get github.com/DotNetVibeCoderz/Vibe_Messaging/SocketSignal/clients/go/v2/socketsignal
+
+# or run the example from a checkout
 cd clients/go
 go mod tidy
 go run ./example

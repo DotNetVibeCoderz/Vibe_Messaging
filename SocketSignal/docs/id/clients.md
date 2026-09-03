@@ -26,6 +26,9 @@ terus berjalan.
 Membutuhkan Python 3.10+ dan paket `websockets`.
 
 ```bash
+pip install socketsignal
+
+# atau jalankan contohnya dari hasil clone
 cd clients/python
 pip install websockets
 python example.py
@@ -76,12 +79,15 @@ asyncio.run(main())
 Tanpa dependensi: Node 22 sudah menyediakan `WebSocket` global.
 
 ```bash
+npm install @gravicode/socketsignal
+
+# atau jalankan contohnya dari hasil clone
 cd clients/nodejs
 node example.mjs
 ```
 
 ```javascript
-import { SocketSignalClient, SignalInvocationError } from "socketsignal";
+import { SocketSignalClient, SignalInvocationError } from "@gravicode/socketsignal";
 
 const client = new SocketSignalClient({ callTimeoutMs: 10_000 });
 
@@ -122,6 +128,9 @@ client.close();
 Membutuhkan Go 1.22+ dan `github.com/coder/websocket`.
 
 ```bash
+go get github.com/DotNetVibeCoderz/Vibe_Messaging/SocketSignal/clients/go/v2/socketsignal
+
+# atau jalankan contohnya dari hasil clone
 cd clients/go
 go mod tidy
 go run ./example

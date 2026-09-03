@@ -125,11 +125,14 @@ Where the wins come from — and why the end-to-end figure is not zero either �
 The protocol is JSON over a plain WebSocket, so anything that speaks WebSocket can join in.
 Three SDKs ship with the same shape as the .NET client:
 
-| Language | Package | Dependencies |
+| Language | Install | Dependencies |
 |---|---|---|
-| [Python](clients/python) | `socketsignal` | `websockets` |
-| [Node.js](clients/nodejs) | `socketsignal` | none — Node 22's global `WebSocket` |
-| [Go](clients/go) | `socketsignal` | `github.com/coder/websocket` |
+| [Python](clients/python) | `pip install socketsignal` | `websockets` |
+| [Node.js](clients/nodejs) | `npm install @gravicode/socketsignal` | none — Node 22's global `WebSocket` |
+| [Go](clients/go) | `go get github.com/DotNetVibeCoderz/Vibe_Messaging/SocketSignal/clients/go/v2/socketsignal` | `github.com/coder/websocket` |
+
+[![PyPI](https://img.shields.io/pypi/v/socketsignal.svg?label=pypi%20socketsignal)](https://pypi.org/project/socketsignal/)
+[![npm](https://img.shields.io/npm/v/%40gravicode%2Fsocketsignal.svg?label=npm%20%40gravicode%2Fsocketsignal)](https://www.npmjs.com/package/@gravicode/socketsignal)
 
 ```python
 client = SocketSignalClient()
@@ -344,11 +347,11 @@ Penjelasan lengkapnya — termasuk mengapa angka end-to-end tidak nol — ada di
 Protokolnya JSON di atas WebSocket biasa, jadi apa pun yang bisa bicara WebSocket dapat ikut
 serta. Tiga SDK disertakan dengan bentuk API yang sama seperti client .NET:
 
-| Bahasa | Paket | Dependensi |
+| Bahasa | Instalasi | Dependensi |
 |---|---|---|
-| [Python](clients/python) | `socketsignal` | `websockets` |
-| [Node.js](clients/nodejs) | `socketsignal` | tidak ada — `WebSocket` bawaan Node 22 |
-| [Go](clients/go) | `socketsignal` | `github.com/coder/websocket` |
+| [Python](clients/python) | `pip install socketsignal` | `websockets` |
+| [Node.js](clients/nodejs) | `npm install @gravicode/socketsignal` | tidak ada — `WebSocket` bawaan Node 22 |
+| [Go](clients/go) | `go get github.com/DotNetVibeCoderz/Vibe_Messaging/SocketSignal/clients/go/v2/socketsignal` | `github.com/coder/websocket` |
 
 Browser bahkan tidak memerlukan SDK sama sekali — lihat contoh JavaScript di bagian Inggris di
 atas, atau [docs/id/clients.md](docs/id/clients.md).

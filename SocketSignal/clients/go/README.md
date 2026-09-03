@@ -5,6 +5,9 @@
 Bidirectional RPC over WebSockets.
 
 ```bash
+go get github.com/DotNetVibeCoderz/Vibe_Messaging/SocketSignal/clients/go/v2/socketsignal
+
+# run the example from a checkout
 go mod tidy
 go run ./example        # needs a server: dotnet run --project ../../src/SocketSignal.Demo -- serve
 ```
