@@ -32,11 +32,11 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0   # SourceLink wants the full history
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
@@ -75,7 +75,7 @@ jobs:
             --skip-duplicate
 
       - name: Upload the package as a build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: nerve-${{ steps.version.outputs.value }}
           path: Nerve/artifacts/*.*nupkg
