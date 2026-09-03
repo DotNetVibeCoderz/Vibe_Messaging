@@ -1,0 +1,4 @@
+# Go tooling refuses CRLF: gofmt rewrites every line on a Windows checkout otherwise.
+*.go text eol=lf
+go.mod text eol=lf
+go.sum text eol=lf

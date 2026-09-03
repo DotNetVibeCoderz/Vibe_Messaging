@@ -98,8 +98,17 @@ boxed args). Benchmarks compare against the real v1 code, recovered from git int
 ## Client SDKs
 
 `clients/{python,go,nodejs}` are ~300 lines each and speak the same protocol. CI runs all three
-against a real .NET server (`SocketSignal.Demo -- serve`). Node and Python have been verified
-locally; Go has not been compiled here (no Go toolchain on this machine) — CI covers it.
+against a real .NET server (`SocketSignal.Demo -- serve`), and all three have been verified
+locally against one too — including the inbound direction, where the server calls a method on the
+client. The Go toolchain lives at `%LOCALAPPDATA%\Programs\Go` and is on the user PATH.
+
+Published as: `SocketSignal` (NuGet), `socketsignal` (PyPI), `@gravicode/socketsignal` (npm — npm
+refuses the bare name, it collides with the unrelated `socket-signal`). Go has no registry; it is
+served from this repo, so its module path carries the `/v2` suffix Go requires for major version 2
+and a release needs the tag `SocketSignal/clients/go/vX.Y.Z`.
+
+Windows checkouts get CRLF from `core.autocrlf`, which makes `gofmt -l` flag every Go file. The
+`.gitattributes` here pins `*.go` to LF so that does not happen.
 
 ## Publishing
 

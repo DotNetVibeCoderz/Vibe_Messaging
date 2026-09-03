@@ -307,7 +307,13 @@ func (c *Client) readLoop() {
 
 		_, data, err := conn.Read(ctx)
 		if err != nil {
-			reason = err.Error()
+			// A blocking Read that fails because Close() ran is a clean shutdown, not a
+			// transport fault: report it as one rather than surfacing the socket's error.
+			if c.isClosed() {
+				reason = "closed by client"
+			} else {
+				reason = err.Error()
+			}
 			break
 		}
 
@@ -420,6 +426,12 @@ func (c *Client) write(ctx context.Context, conn *websocket.Conn, f frame) error
 		return err
 	}
 	return conn.Write(ctx, websocket.MessageText, data)
+}
+
+func (c *Client) isClosed() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.closed
 }
 
 func (c *Client) connection() *websocket.Conn {
