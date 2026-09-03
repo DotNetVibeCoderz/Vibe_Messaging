@@ -8,6 +8,9 @@ the interop suite.
 
 Requires Go 1.22+. No dependencies outside the standard library.
 
+The module path carries a `/v3` suffix, which Go requires for any major version above 1 and which
+keeps this client on the same version as the .NET package.
+
 ## Install
 
 ```bash

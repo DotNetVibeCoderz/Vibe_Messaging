@@ -5,11 +5,17 @@
 Clients for the BlackHole binary protocol in **Python**, **Go** and **Node.js**. Each one implements
 the wire format independently and is verified against the real .NET server, not a mock.
 
-| | Package | Requires | Tests |
-|---|---|---|---|
-| [Python](python/) | `blackhole-messaging` | 3.10+ | 49 |
-| [Go](go/) | `.../BlackHole/clients/go` | 1.22+ | 30 |
-| [Node.js](nodejs/) | `@gravicode/blackhole-messaging` | 18+ | 34 |
+| | Package | Requires | Tests | Published |
+|---|---|---|---|---|
+| [Python](python/) | [`blackhole-messaging`](https://pypi.org/project/blackhole-messaging/) | 3.10+ | 49 | ✅ PyPI |
+| [Go](go/) | `.../BlackHole/clients/go/v3` | 1.22+ | 30 | ✅ proxy.golang.org |
+| [Node.js](nodejs/) | `@gravicode/blackhole-messaging` | 18+ | 34 | pending npm |
+
+```bash
+pip install blackhole-messaging
+go get github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/v3
+npm install @gravicode/blackhole-messaging   # not yet published
+```
 
 All three cover RPC (both directions), Pub/Sub with `+` and `#` wildcards, Streaming, Batching,
 keepalive, and per-connection statistics.

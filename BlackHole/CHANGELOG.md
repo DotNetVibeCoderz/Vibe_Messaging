@@ -64,6 +64,18 @@ because there is no syscall to amortise.
 Python, Go and Node.js clients, each verified against the real .NET server rather than a mock. The
 wire format is unchanged, so they work against 3.0.0 and 3.1.0 alike. See [clients/](clients/).
 
+Each now speaks TCP plus whatever local IPC its runtime offers natively, and ships a benchmark
+comparing them:
+
+| | Package | Transports |
+|---|---|---|
+| Python | [`blackhole-messaging`](https://pypi.org/project/blackhole-messaging/) | TCP, Unix socket *(not on Windows)* |
+| Go | `github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/v3` | TCP, Unix socket |
+| Node.js | `@gravicode/blackhole-messaging` | TCP, named pipe, Unix socket |
+
+Shared memory stays .NET-only: it needs a mapped segment and a dedicated polling thread, which none
+of the three can offer without native code.
+
 ### Two traps worth knowing about
 
 Both cost real debugging time, and both are the kind that are hard to diagnose in production.

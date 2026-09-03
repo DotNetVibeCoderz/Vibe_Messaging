@@ -8,6 +8,9 @@ against it by the interop suite.
 
 Requires Node 18+. ESM, no dependencies.
 
+Not yet on npm — install it from the repository, or publish it with the
+`clients/v*` release workflow once an `NPM_TOKEN` secret is in place.
+
 ## Install
 
 ```bash

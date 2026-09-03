@@ -6,7 +6,8 @@ Asyncio client for the BlackHole binary protocol: **RPC**, **Pub/Sub**, **Stream
 **Batching** over TCP. Speaks the same wire format as the [.NET library](../../README.md), verified
 against it by the interop suite.
 
-Requires Python 3.10+. No dependencies.
+Requires Python 3.10+. No dependencies. Published on
+[PyPI](https://pypi.org/project/blackhole-messaging/).
 
 ## Install
 
