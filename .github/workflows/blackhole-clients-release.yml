@@ -1,0 +1,147 @@
+# BlackHole Messaging - client SDK releases
+# Gravicode Studios, led by Kang Fadhil.
+#
+# The Go client needs nothing here: Go modules publish by pushing a tag, which
+# `BlackHole/clients/go/vX.Y.Z` already does. This workflow covers the two that need a registry
+# account - PyPI and npm - and is driven by its own tag so a .NET release does not republish them.
+#
+# Tag shapes:
+#   clients/vX.Y.Z   publishes both the Python and Node.js clients
+#
+# Required secrets:
+#   PYPI_API_TOKEN   a PyPI project token, or use trusted publishing and drop the token step
+#   NPM_TOKEN        an npm automation token with publish rights on @gravicode
+
+name: BlackHole Clients Release
+
+on:
+  push:
+    tags: ['clients/v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build and check the packages without publishing'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Nothing is published before the suites that prove the clients still speak the protocol.
+  verify:
+    name: Verify ${{ matrix.sdk }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        sdk: [python, nodejs, go]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build the interop server
+        run: dotnet build BlackHole/tests/BlackHole.InteropServer -c Release
+
+      - name: Install Python
+        if: matrix.sdk == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test the Python client
+        if: matrix.sdk == 'python'
+        working-directory: BlackHole/clients/python
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+          python -m pytest tests/ -q
+
+      - name: Install Node.js
+        if: matrix.sdk == 'nodejs'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Test the Node.js client
+        if: matrix.sdk == 'nodejs'
+        working-directory: BlackHole/clients/nodejs
+        run: node --test
+
+      - name: Install Go
+        if: matrix.sdk == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Test the Go client
+        if: matrix.sdk == 'go'
+        working-directory: BlackHole/clients/go
+        run: |
+          go vet ./...
+          go test ./blackhole/ -count=1 -timeout 300s
+
+  publish-python:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: verify
+    environment: pypi
+    permissions:
+      # Lets PyPI trusted publishing mint a short-lived credential, so no long-lived token has to
+      # live in this repository at all. Delete the token step below if you use it.
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build the distributions
+        working-directory: BlackHole/clients/python
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          python -m twine check dist/*
+
+      - name: Publish
+        if: github.event_name == 'push' || !inputs.dry_run
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: BlackHole/clients/python/dist/
+          # Drop this line once trusted publishing is configured for the project on PyPI.
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip-existing: true
+
+  publish-npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs: verify
+    environment: npm
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Pack and inspect
+        working-directory: BlackHole/clients/nodejs
+        run: npm pack --dry-run
+
+      - name: Publish
+        if: github.event_name == 'push' || !inputs.dry_run
+        working-directory: BlackHole/clients/nodejs
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # A scoped package defaults to private, which fails without a paid plan; --access public
+        # is what makes @gravicode/blackhole-messaging installable by anyone.
+        run: npm publish --access public
