@@ -69,7 +69,7 @@ jobs:
             --skip-duplicate
 
       - name: Upload the package as a build artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: socketsignal-${{ steps.version.outputs.value }}
           path: SocketSignal/artifacts/*.*nupkg

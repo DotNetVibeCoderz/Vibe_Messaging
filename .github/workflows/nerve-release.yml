@@ -75,7 +75,7 @@ jobs:
             --skip-duplicate
 
       - name: Upload the package as a build artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: nerve-${{ steps.version.outputs.value }}
           path: Nerve/artifacts/*.*nupkg
