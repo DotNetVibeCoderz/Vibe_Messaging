@@ -8,9 +8,12 @@
 # Tag shapes:
 #   clients/vX.Y.Z   publishes both the Python and Node.js clients
 #
-# Required secrets:
-#   PYPI_API_TOKEN   a PyPI project token, or use trusted publishing and drop the token step
-#   NPM_TOKEN        an npm automation token with publish rights on @gravicode
+# Credentials:
+#   PyPI  trusted publishing (no secret), or a PYPI_API_TOKEN project token
+#   npm   trusted publishing via OIDC (no secret). A plain automation token will NOT work on an
+#         account with 2FA required for writes, and npm is deprecating the bypass that used to
+#         allow it - see gh.io/npm-gat-bypass2fa-deprecation. Configure the package's trusted
+#         publisher on npmjs.com to point at this repository and workflow.
 
 name: BlackHole Clients Release
 
@@ -124,6 +127,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: verify
     environment: npm
+    permissions:
+      # OIDC trusted publishing: npm mints a short-lived credential from this token, so no
+      # long-lived secret is needed. npm is actively deprecating token-based 2FA bypass for direct
+      # publishing (gh.io/npm-gat-bypass2fa-deprecation), which is why this is the primary path -
+      # an automation token simply cannot publish from an account with 2FA on writes.
+      id-token: write
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -133,6 +143,10 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
+      # Trusted publishing needs npm 11.5.1 or later; the version bundled with Node 22 is older.
+      - name: Update npm
+        run: npm install -g npm@latest
+
       - name: Pack and inspect
         working-directory: BlackHole/clients/nodejs
         run: npm pack --dry-run
@@ -141,6 +155,8 @@ jobs:
         if: github.event_name == 'push' || !inputs.dry_run
         working-directory: BlackHole/clients/nodejs
         env:
+          # Only used if the package is not yet configured for trusted publishing on npmjs.com.
+          # Leave NPM_TOKEN unset once trusted publishing is in place.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         # A scoped package defaults to private, which fails without a paid plan; --access public
         # is what makes @gravicode/blackhole-messaging installable by anyone.
