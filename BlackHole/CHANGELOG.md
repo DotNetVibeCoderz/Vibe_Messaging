@@ -71,7 +71,7 @@ comparing them:
 |---|---|---|
 | Python | [`blackhole-messaging`](https://pypi.org/project/blackhole-messaging/) | TCP, Unix socket *(not on Windows)* |
 | Go | `github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/v3` | TCP, Unix socket |
-| Node.js | `@gravicode/blackhole-messaging` | TCP, named pipe, Unix socket |
+| Node.js | [`@gravicode/blackhole-messaging`](https://www.npmjs.com/package/@gravicode/blackhole-messaging) | TCP, named pipe, Unix socket |
 
 Shared memory stays .NET-only: it needs a mapped segment and a dedicated polling thread, which none
 of the three can offer without native code.

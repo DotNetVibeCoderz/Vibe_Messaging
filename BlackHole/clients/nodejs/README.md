@@ -8,16 +8,7 @@ against it by the interop suite.
 
 Requires Node 18+. ESM, no dependencies.
 
-Not yet on npm. Install it from the repository for now:
-
-```bash
-npm install github:DotNetVibeCoderz/Vibe_Messaging#main --prefix BlackHole/clients/nodejs
-```
-
-Publishing needs npm **trusted publishing** rather than a token: this account requires 2FA for
-writes, and npm is deprecating the token bypass that used to work around it
-([details](https://gh.io/npm-gat-bypass2fa-deprecation)). The `clients/v*` release workflow is
-already wired for OIDC — configure the package trusted publisher on npmjs.com and push the tag.
+Published on [npm](https://www.npmjs.com/package/@gravicode/blackhole-messaging).
 
 ## Install
 

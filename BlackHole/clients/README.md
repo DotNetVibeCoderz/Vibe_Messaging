@@ -9,12 +9,12 @@ the wire format independently and is verified against the real .NET server, not 
 |---|---|---|---|---|
 | [Python](python/) | [`blackhole-messaging`](https://pypi.org/project/blackhole-messaging/) | 3.10+ | 49 | ✅ PyPI |
 | [Go](go/) | `.../BlackHole/clients/go/v3` | 1.22+ | 30 | ✅ proxy.golang.org |
-| [Node.js](nodejs/) | `@gravicode/blackhole-messaging` | 18+ | 34 | pending npm |
+| [Node.js](nodejs/) | [`@gravicode/blackhole-messaging`](https://www.npmjs.com/package/@gravicode/blackhole-messaging) | 18+ | 34 | ✅ npm |
 
 ```bash
 pip install blackhole-messaging
 go get github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/v3
-npm install @gravicode/blackhole-messaging   # not yet published
+npm install @gravicode/blackhole-messaging
 ```
 
 All three cover RPC (both directions), Pub/Sub with `+` and `#` wildcards, Streaming, Batching,
