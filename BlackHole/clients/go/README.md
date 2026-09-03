@@ -2,6 +2,8 @@
 
 *Gravicode Studios, led by Kang Fadhil.*
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/v3.svg)](https://pkg.go.dev/github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/v3)
+
 Go client for the BlackHole binary protocol: **RPC**, **Pub/Sub**, **Streaming** and **Batching**
 over TCP. Speaks the same wire format as the [.NET library](../../README.md), verified against it by
 the interop suite.

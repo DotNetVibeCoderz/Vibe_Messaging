@@ -2,6 +2,8 @@
 
 *Gravicode Studios, led by Kang Fadhil.*
 
+[![npm](https://img.shields.io/npm/v/%40gravicode%2Fblackhole-messaging?label=npm&logo=npm&color=CB3837)](https://www.npmjs.com/package/@gravicode/blackhole-messaging)
+
 Node.js client for the BlackHole binary protocol: **RPC**, **Pub/Sub**, **Streaming** and
 **Batching** over TCP. Speaks the same wire format as the [.NET library](../../README.md), verified
 against it by the interop suite.

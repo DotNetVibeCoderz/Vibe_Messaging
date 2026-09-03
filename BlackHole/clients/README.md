@@ -2,6 +2,10 @@
 
 *BlackHole Messaging — Gravicode Studios, led by Kang Fadhil.*
 
+[![PyPI](https://img.shields.io/pypi/v/blackhole-messaging?label=PyPI&logo=pypi&logoColor=white&color=3775A9)](https://pypi.org/project/blackhole-messaging/)
+[![Go Reference](https://pkg.go.dev/badge/github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/v3.svg)](https://pkg.go.dev/github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/v3)
+[![npm](https://img.shields.io/npm/v/%40gravicode%2Fblackhole-messaging?label=npm&logo=npm&color=CB3837)](https://www.npmjs.com/package/@gravicode/blackhole-messaging)
+
 Clients for the BlackHole binary protocol in **Python**, **Go** and **Node.js**. Each one implements
 the wire format independently and is verified against the real .NET server, not a mock.
 

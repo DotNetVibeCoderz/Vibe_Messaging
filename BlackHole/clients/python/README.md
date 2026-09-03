@@ -2,6 +2,8 @@
 
 *Gravicode Studios, led by Kang Fadhil.*
 
+[![PyPI](https://img.shields.io/pypi/v/blackhole-messaging?label=PyPI&logo=pypi&logoColor=white&color=3775A9)](https://pypi.org/project/blackhole-messaging/)
+
 Asyncio client for the BlackHole binary protocol: **RPC**, **Pub/Sub**, **Streaming** and
 **Batching** over TCP. Speaks the same wire format as the [.NET library](../../README.md), verified
 against it by the interop suite.

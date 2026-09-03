@@ -1,7 +1,11 @@
 # BlackHole Messaging 🕳️
 
-[![NuGet](https://img.shields.io/nuget/v/BlackHole.Messaging.svg)](https://www.nuget.org/packages/BlackHole.Messaging)
-[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/)
+[![NuGet](https://img.shields.io/nuget/v/BlackHole.Messaging?label=NuGet&logo=nuget&color=004880)](https://www.nuget.org/packages/BlackHole.Messaging)
+[![PyPI](https://img.shields.io/pypi/v/blackhole-messaging?label=PyPI&logo=pypi&logoColor=white&color=3775A9)](https://pypi.org/project/blackhole-messaging/)
+[![npm](https://img.shields.io/npm/v/%40gravicode%2Fblackhole-messaging?label=npm&logo=npm&color=CB3837)](https://www.npmjs.com/package/@gravicode/blackhole-messaging)
+[![Go Reference](https://pkg.go.dev/badge/github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/v3.svg)](https://pkg.go.dev/github.com/DotNetVibeCoderz/Vibe_Messaging/BlackHole/clients/go/v3)
+
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![CI](https://github.com/DotNetVibeCoderz/Vibe_Messaging/actions/workflows/blackhole-ci.yml/badge.svg)](https://github.com/DotNetVibeCoderz/Vibe_Messaging/actions/workflows/blackhole-ci.yml)
 
