@@ -15,6 +15,13 @@ Development log for BigPipe. Newest entries on top. The roadmap is in [PLAN.md](
 - The compose file advertises the broker as `bigpiped`, so the Schema Registry and other containers can reach it. · File compose mengiklankan broker sebagai `bigpiped` agar kontainer lain bisa menjangkaunya.
 - Benchmarks re-measured on the release build (see [operations](docs/en/operations.md#benchmarks)). · Benchmark diukur ulang pada build release.
 
+**Released · Dirilis**
+
+- NuGet: BigPipe.Client, .Streams, .Analytics, .Analytics.Scripting, .Analytics.ML, .Analytics.Torch, .Analytics.Gravicode 0.1.0 (with symbols · dengan simbol)
+- PyPI: `bigpipe` 0.1.0
+- Go: tag `BigPipe/sdk/go/v0.1.0`
+- npm: `bigpipe-client` **pending**. The stored npm token was rejected (401), so it needs a new granular token or a trusted publisher. · **tertunda**: token npm ditolak (401), perlu token granular baru atau trusted publisher.
+
 **Verification · Verifikasi**
 
 | Suite | Result · Hasil |
