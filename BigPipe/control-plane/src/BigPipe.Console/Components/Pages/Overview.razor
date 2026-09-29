@@ -1,0 +1,74 @@
+@page "/"
+@implements IDisposable
+@inject ClusterState State
+
+<PageTitle>BigPipe · @L.T("nav.overview")</PageTitle>
+
+<h1 class="title">@L.T("overview.title")</h1>
+<p class="lede">@L.T("overview.lede")</p>
+
+@{
+    var rates = State.Rates;
+    var cur = State.Current;
+    var totalLag = State.Groups.Sum(g => g.Lag);
+}
+<section class="readouts" aria-label="Throughput">
+    <div class="readout">
+        <div class="k">@L.T("overview.in")</div>
+        <div class="v">@Format.Count(cur.RecordsIn)<small>/s</small></div>
+        <Sparkline Values="@(rates.Select(r => r.RecordsIn).ToList())" Color="var(--copper)" />
+    </div>
+    <div class="readout">
+        <div class="k">@L.T("overview.bytesIn")</div>
+        <div class="v">@Format.Bytes(cur.BytesIn)<small>/s</small></div>
+        <Sparkline Values="@(rates.Select(r => r.BytesIn).ToList())" Color="var(--water)" />
+    </div>
+    <div class="readout">
+        <div class="k">@L.T("overview.bytesOut")</div>
+        <div class="v">@Format.Bytes(cur.BytesOut)<small>/s</small></div>
+        <Sparkline Values="@(rates.Select(r => r.BytesOut).ToList())" Color="var(--steel)" />
+    </div>
+    <div class="readout">
+        <div class="k">@L.T("overview.p99")</div>
+        <div class="v">@(State.Metrics is { } m ? m.ProduceP99Ms.ToString("0.#") : "–")<small>ms</small></div>
+    </div>
+    <div class="readout @(totalLag > 0 ? "warn" : "")">
+        <div class="k">@L.T("overview.lag")</div>
+        <div class="v">@Format.Count(totalLag)<small>rec</small></div>
+    </div>
+</section>
+
+<h2 class="section">@L.T("overview.schematic") <small>@L.T("overview.schematicHint")</small></h2>
+@if (State.Topics.Any(t => !t.Internal))
+{
+    <Schematic Topics="State.Topics" Groups="State.Groups" Rates="State.TopicRates" />
+}
+else
+{
+    <div class="empty">@L.T("overview.noTopics")</div>
+}
+
+<h2 class="section">@L.T("nav.topics") <small>@State.Topics.Count(t => !t.Internal) · @Format.Bytes(State.Topics.Sum(t => t.Bytes.Total))</small></h2>
+<div class="two-col">
+    @foreach (var mode in new[] { StorageMode.Local, StorageMode.Tiered, StorageMode.Diskless })
+    {
+        var ts = State.Topics.Where(t => t.Mode == mode && !t.Internal).ToList();
+        <div class="panel">
+            <h3><Material Mode="mode" /></h3>
+            <div class="readout" style="padding:0;border:0">
+                <div class="v">@ts.Count<small>topics</small></div>
+                <div class="muted">@Format.Count(ts.Sum(t => t.Records)) records · @Format.Bytes(ts.Sum(t => t.Bytes.Total))</div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter] public L10n L { get; set; } = new();
+
+    protected override void OnInitialized() => State.Changed += OnChanged;
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => State.Changed -= OnChanged;
+}

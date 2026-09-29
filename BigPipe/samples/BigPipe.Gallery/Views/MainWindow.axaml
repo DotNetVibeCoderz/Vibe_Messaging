@@ -1,0 +1,174 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:BigPipe.Gallery.ViewModels"
+        xmlns:v="using:BigPipe.Gallery.Views"
+        x:Class="BigPipe.Gallery.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/bigpipe.ico"
+        Title="BigPipe Gallery"
+        Width="1440" Height="920" MinWidth="980" MinHeight="640">
+
+    <Grid ColumnDefinitions="280,*">
+
+        <!-- Left rail: cases grouped by category -->
+        <Border Grid.Column="0" Background="{DynamicResource Paper2}" BorderBrush="{DynamicResource Ink}" BorderThickness="0,0,1.5,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="20,22,20,10" Orientation="Horizontal" Spacing="12">
+                    <Image Source="/Assets/bigpipe-256.png" Width="40" Height="40" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Classes="display" FontSize="34" LineHeight="32">
+                            <Run Text="Big" /><Run Text="Pipe" Foreground="{DynamicResource Copper}" />
+                        </TextBlock>
+                        <TextBlock Classes="eyebrow" Text="GALLERY" />
+                    </StackPanel>
+                </StackPanel>
+                <TextBlock DockPanel.Dock="Bottom" Margin="20,10,20,18" TextWrapping="Wrap" FontSize="11.5"
+                           Foreground="{DynamicResource Ink3}" Text="{Binding Credit}" />
+                <ScrollViewer>
+                    <ItemsControl ItemsSource="{Binding Groups}" Margin="12,6,12,6">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CaseGroup">
+                                <StackPanel Margin="0,10,0,2" Spacing="2">
+                                    <TextBlock Classes="eyebrow" Margin="10,0,0,4" Text="{Binding Name, Converter={x:Static v:Converters.Upper}}" />
+                                    <ItemsControl ItemsSource="{Binding Cases}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:CaseViewModel">
+                                                <Button Classes="nav" Classes.on="{Binding IsSelected}"
+                                                        Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).SelectCommand}"
+                                                        CommandParameter="{Binding}">
+                                                    <Grid ColumnDefinitions="30,*">
+                                                        <TextBlock Grid.Column="0" FontFamily="{DynamicResource MonoFont}" FontSize="12"
+                                                                   Foreground="{DynamicResource Ink3}" Text="{Binding NumberLabel}" VerticalAlignment="Center" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding Title}" TextWrapping="Wrap" FontSize="13.5" />
+                                                    </Grid>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- Main area -->
+        <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*" Margin="28,18,28,20">
+
+            <!-- Connection nameplate -->
+            <Border Grid.Row="0" Classes="card" Padding="14,8">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Ellipse Width="9" Height="9" Margin="0,0,10,0" VerticalAlignment="Center"
+                             Fill="{DynamicResource Ok}" IsVisible="{Binding Connected}" />
+                    <Ellipse Width="9" Height="9" Margin="0,0,10,0" VerticalAlignment="Center"
+                             Fill="{DynamicResource Alert}" IsVisible="{Binding !Connected}" />
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Classes="eyebrow" Text="CONNECTED CLUSTER" />
+                        <TextBlock FontFamily="{DynamicResource MonoFont}" FontSize="12.5" Text="{Binding Connection}" />
+                    </StackPanel>
+                    <Button Grid.Column="2" Classes="ghost" Content="Check again" Command="{Binding CheckConnectionCommand}" />
+                </Grid>
+            </Border>
+
+            <!-- Case header -->
+            <StackPanel Grid.Row="1" Margin="0,24,0,16" Spacing="6" DataContext="{Binding Selected}" x:DataType="vm:CaseViewModel">
+                <TextBlock Classes="eyebrow" Text="{Binding Category, Converter={x:Static v:Converters.Upper}}" Foreground="{DynamicResource Copper}" />
+                <TextBlock Classes="display" FontSize="46" Text="{Binding Title, Converter={x:Static v:Converters.Upper}}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" FontSize="15" MaxWidth="900" HorizontalAlignment="Left"
+                           Foreground="{DynamicResource Ink2}" />
+                <ItemsControl ItemsSource="{Binding Highlights}" Margin="0,6,0,0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <Border Margin="0,0,8,6" Padding="10,4" CornerRadius="12" BorderThickness="1" BorderBrush="{DynamicResource Steel}">
+                                <TextBlock FontSize="12.5" Text="{Binding}" Foreground="{DynamicResource Ink2}" />
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- Code and run panes -->
+            <Grid Grid.Row="2" ColumnDefinitions="11*,16,10*" DataContext="{Binding Selected}" x:DataType="vm:CaseViewModel">
+
+                <Border Grid.Column="0" Classes="card">
+                    <DockPanel>
+                        <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource Rule}" BorderThickness="0,0,0,1" Padding="8,4">
+                            <Grid ColumnDefinitions="Auto,*">
+                                <TextBlock Classes="eyebrow" Text="SAMPLE CODE" VerticalAlignment="Center" Margin="8,0,16,0" />
+                                <ListBox Grid.Column="1" Classes="tabs" ItemsSource="{Binding Snippets}" SelectedItem="{Binding SelectedSnippet}">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:SnippetViewModel">
+                                            <TextBlock Text="{Binding Language}" />
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </Border>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" Padding="18,14">
+                            <v:CodeView FontFamily="{DynamicResource MonoFont}" FontSize="13" LineHeight="20"
+                                        Code="{Binding SelectedSnippet.Code}" Language="{Binding SelectedSnippet.Language}" />
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+
+                <Border Grid.Column="2" Classes="card">
+                    <Grid RowDefinitions="Auto,Auto,*" Margin="16,14">
+                        <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
+                            <Button Classes="primary" Content="▶  Run against BigPipe" Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}" />
+                            <Button Grid.Column="1" Classes="ghost" Content="Stop" Command="{Binding StopCommand}" IsEnabled="{Binding IsRunning}" />
+                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="8,0,0,0">
+                                <TextBlock Text="{Binding Status}" FontWeight="SemiBold" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource Ink2}" Classes.ok="{Binding IsOk}" Classes.err="{Binding IsError}">
+                                    <TextBlock.Styles>
+                                        <Style Selector="TextBlock.ok"><Setter Property="Foreground" Value="{DynamicResource Ok}" /></Style>
+                                        <Style Selector="TextBlock.err"><Setter Property="Foreground" Value="{DynamicResource Alert}" /></Style>
+                                    </TextBlock.Styles>
+                                </TextBlock>
+                                <TextBlock Text="{Binding RequirementNote}" FontSize="11.5" Foreground="{DynamicResource Ink3}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Grid>
+
+                        <ItemsControl Grid.Row="1" ItemsSource="{Binding Metrics}" Margin="0,14,0,4">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:MetricBar">
+                                    <Grid ColumnDefinitions="170,Auto,*" Margin="0,3">
+                                        <TextBlock Text="{Binding Label}" FontSize="12.5" Foreground="{DynamicResource Ink2}" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <Border Grid.Column="1" Height="12" CornerRadius="6" Width="{Binding BarWidth}"
+                                                Background="{DynamicResource Copper}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="2" Margin="8,0,0,0" FontFamily="{DynamicResource MonoFont}" FontSize="12"
+                                                   Text="{Binding Display}" VerticalAlignment="Center" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Border Grid.Row="2" Margin="0,10,0,0" Background="{DynamicResource Console}" CornerRadius="3" Padding="12,10">
+                            <ScrollViewer x:Name="OutputScroll">
+                                <ItemsControl ItemsSource="{Binding Output}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <SelectableTextBlock Text="{Binding}" FontFamily="{DynamicResource MonoFont}" FontSize="12"
+                                                                 Foreground="{DynamicResource ConsoleText}" TextWrapping="Wrap" Margin="0,1" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

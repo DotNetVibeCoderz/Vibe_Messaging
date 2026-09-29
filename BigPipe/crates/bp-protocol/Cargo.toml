@@ -1,0 +1,16 @@
+[package]
+name = "bp-protocol"
+description = "Kafka wire protocol codec (zero-copy) and record batch format for BigPipe"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+bytes.workspace = true
+thiserror.workspace = true
+crc32c.workspace = true
+flate2.workspace = true
+snap.workspace = true
+lz4_flex.workspace = true
+zstd.workspace = true

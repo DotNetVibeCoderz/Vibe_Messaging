@@ -1,0 +1,136 @@
+# BigPipe - continuous integration
+# Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.
+#
+# The repository holds several unrelated projects, so every path filter and every working directory
+# is scoped to BigPipe/. Nothing here builds its siblings.
+name: BigPipe CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'BigPipe/**'
+      - '.github/workflows/bigpipe-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'BigPipe/**'
+      - '.github/workflows/bigpipe-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+defaults:
+  run:
+    working-directory: BigPipe
+
+jobs:
+  # The broker, its unit tests and the .NET suite, which starts its own bigpiped on test ports.
+  core:
+    name: core on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: BigPipe
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Rust tests
+        run: cargo test --workspace --release
+
+      - name: Build bigpiped and bpctl
+        run: cargo build --release -p bigpiped -p bpctl
+
+      - name: .NET tests (client, streams, analytics, registry)
+        run: dotnet test sdk/dotnet/tests/BigPipe.Client.Tests/BigPipe.Client.Tests.csproj -c Release
+
+      - name: Build every .NET project
+        run: dotnet build BigPipe.sln -c Release
+
+  # Kafka-client compatibility and the language SDKs, all against one live node.
+  compat-and-sdks:
+    name: compat and SDKs
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: BigPipe
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Start bigpiped
+        run: |
+          cargo build --release -p bigpiped
+          ./target/release/bigpiped --mode dev --data-dir "$RUNNER_TEMP/bpdata" > "$RUNNER_TEMP/bigpiped.log" 2>&1 &
+          for i in $(seq 1 30); do curl -sf localhost:9644/healthz && break; sleep 1; done
+
+      - name: Kafka client compatibility (librdkafka, kafka-python)
+        run: |
+          python -m pip install confluent-kafka kafka-python
+          python tests/compat/python_compat.py
+
+      - name: Feature integration suite
+        run: python tests/integration/test_features.py
+
+      - name: Python SDK
+        working-directory: BigPipe/sdk/python
+        run: |
+          python -m pip install -e ".[test]"
+          python -m pytest -q
+
+      - name: TypeScript SDK
+        working-directory: BigPipe/sdk/typescript
+        run: |
+          npm ci
+          npm test
+
+      - name: Go SDK
+        working-directory: BigPipe/sdk/go
+        run: go test ./...
+
+      - name: Java SDK
+        working-directory: BigPipe/sdk/java
+        run: mvn -B -q test
+
+      - name: Broker log
+        if: failure()
+        run: tail -n 200 "$RUNNER_TEMP/bigpiped.log"

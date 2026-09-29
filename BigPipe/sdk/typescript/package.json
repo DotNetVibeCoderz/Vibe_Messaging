@@ -1,0 +1,28 @@
+{
+  "name": "bigpipe-client",
+  "version": "0.1.0",
+  "description": "TypeScript/Node.js SDK for BigPipe, the high performance realtime stream processing platform: batching producer, consumer groups, share groups, SSE streaming with server-side filters, admin API. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/sdk.test.mjs"
+  },
+  "keywords": ["bigpipe", "kafka", "streaming", "stream-processing", "realtime", "sse", "gravicode"],
+  "author": "Gravicode Studios",
+  "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "git+https://github.com/DotNetVibeCoderz/Vibe_Messaging.git", "directory": "BigPipe/sdk/typescript" },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "typescript": "^5.9.3"
+  }
+}

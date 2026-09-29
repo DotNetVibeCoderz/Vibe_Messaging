@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>BigPipe.Analytics</PackageId>
+    <Description>BigPipe realtime analytics for .NET: stream sources and sinks, tumbling/sliding windows, streaming statistics (Welford, EWMA, quantiles), sketches (HyperLogLog, Count-Min, Top-K) and anomaly detectors (z-score, EWMA, MAD). Extend with BigPipe.Analytics.Scripting, .ML, .Torch and .Gravicode. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BigPipe.Client\BigPipe.Client.csproj" />
+    <PackageReference Include="System.IO.Hashing" Version="10.0.12" />
+  </ItemGroup>
+
+</Project>

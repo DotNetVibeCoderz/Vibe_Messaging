@@ -1,0 +1,105 @@
+@* The pipeline schematic: producers → topic pipes (material = storage mode, flow speed = write rate) → consumer groups. *@
+@{
+    var topics = Topics.Where(t => !t.Internal).Take(MaxTopics).ToList();
+    var hidden = Topics.Count(t => !t.Internal) - topics.Count;
+    const int rowH = 66;
+    const int top = 56;
+    var height = top + Math.Max(1, topics.Count) * rowH + 24;
+    const int pipeStart = 210;
+    const int pipeEnd = 650;
+    var totalRate = Rates.Values.Sum();
+}
+<div class="schematic">
+    <svg viewBox="0 0 1000 @height" role="img" aria-label="@L.T("overview.schematic")">
+        <rect class="node" x="16" y="@(top - 8)" width="150" height="72" rx="3" />
+        <text class="node-title" x="30" y="@(top + 16)">@L.T("sch.producers")</text>
+        <text class="sub" x="30" y="@(top + 34)">@Format.Count(totalRate) rec/s</text>
+        <text class="sub" x="30" y="@(top + 50)">Kafka · HTTP · SDK</text>
+
+        @if (topics.Count > 0)
+        {
+            <line x1="166" y1="@(top + 20)" x2="182" y2="@(top + 20)" stroke="var(--steel)" stroke-width="10" />
+            <line x1="182" y1="@(top + 20)" x2="182" y2="@(top + (topics.Count - 1) * rowH + 20)" stroke="var(--steel)" stroke-width="10" stroke-linecap="square" />
+        }
+
+        @for (var i = 0; i < topics.Count; i++)
+        {
+            var t = topics[i];
+            var y = top + i * rowH + 20;
+            var rate = Rates.TryGetValue(t.Name, out var r) ? r : 0;
+            var mat = Format.ModeClass(t.Mode);
+            var speed = rate < 0.5 ? 0 : Math.Clamp(3.2 - Math.Log10(rate + 1), 0.35, 3.2);
+            var groups = Groups.Where(g => g.Topics?.Contains(t.Name) == true).OrderBy(g => g.GroupId.StartsWith("__")).ThenBy(g => g.GroupId).Take(3).ToList();
+            <g>
+                <line x1="182" y1="@y" x2="@pipeStart" y2="@y" stroke="var(--steel)" stroke-width="10" />
+                <rect x="@(pipeStart - 4)" y="@(y - 12)" width="6" height="24" fill="var(--steel)" />
+                <line class="pipe-wall @mat" x1="@pipeStart" y1="@y" x2="@pipeEnd" y2="@y" stroke-width="16" />
+                <line class="pipe-flow @(speed == 0 ? "idle" : "")" x1="@(pipeStart + 6)" y1="@y" x2="@(pipeEnd - 6)" y2="@y" stroke-width="4"
+                      style="--flow-speed:@(Num(speed))s" />
+                <rect x="@(pipeEnd - 2)" y="@(y - 12)" width="6" height="24" fill="var(--steel)" />
+                <a href="@($"topics/{Uri.EscapeDataString(t.Name)}")">
+                    <text class="label" x="@(pipeStart + 8)" y="@(y - 14)">@t.Name</text>
+                </a>
+                <text class="sub" x="@(pipeEnd - 4)" y="@(y - 14)" text-anchor="end">×@t.Partitions · @t.Mode.ToString().ToLowerInvariant() · @Format.Count(t.Records) rec · @(rate >= 0.5 ? Format.Count(rate) + "/s" : "idle")</text>
+
+                @if (groups.Count == 0)
+                {
+                    <g>
+                        <line x1="@(pipeEnd + 4)" y1="@y" x2="@(pipeEnd + 26)" y2="@y" stroke="var(--steel)" stroke-width="10" />
+                        <rect x="@(pipeEnd + 26)" y="@(y - 9)" width="5" height="18" fill="var(--ink)" />
+                        <text class="sub" x="@(pipeEnd + 40)" y="@(y + 4)">@L.T("sch.noConsumers")</text>
+                    </g>
+                }
+                else
+                {
+                    <line x1="@(pipeEnd + 4)" y1="@y" x2="@(pipeEnd + 40)" y2="@y" stroke="var(--steel)" stroke-width="10" />
+                    @for (var gi = 0; gi < groups.Count; gi++)
+                    {
+                        var g = groups[gi];
+                        var gx = pipeEnd + 64 + gi * 104;
+                        var lagColor = g.Lag == 0 ? "var(--ok)" : "var(--amber)";
+                        <g>
+                        <polygon points="@Tri(gx - 12, y - 9, gx, y, gx - 12, y + 9)" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.5" />
+                        <polygon points="@Tri(gx + 12, y - 9, gx, y, gx + 12, y + 9)" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.5" />
+                        <circle cx="@gx" cy="@(y - 16)" r="4.5" fill="@lagColor" />
+                        <a href="@($"groups/{Uri.EscapeDataString(g.GroupId)}")">
+                            <text class="sub" x="@gx" y="@(y + 24)" text-anchor="middle">@Short(g.GroupId)</text>
+                        </a>
+                        <text class="sub" x="@gx" y="@(y + 36)" text-anchor="middle">lag @Format.Count(g.Lag)</text>
+                        </g>
+                        @if (gi < groups.Count - 1)
+                        {
+                            <line x1="@(gx + 12)" y1="@y" x2="@(gx + 92)" y2="@y" stroke="var(--steel)" stroke-width="3" />
+                        }
+                    }
+                }
+            </g>
+        }
+        @if (hidden > 0)
+        {
+            <g><text class="sub" x="@pipeStart" y="@(height - 8)">+ @hidden @L.T("sch.more")</text></g>
+        }
+    </svg>
+</div>
+<div class="legend">
+    <span class="mat-local"><i></i>@L.T("mode.local")</span>
+    <span class="mat-tiered"><i></i>@L.T("mode.tiered")</span>
+    <span class="mat-diskless"><i></i>@L.T("mode.diskless")</span>
+    <span class="muted"><span style="color:var(--ok)">●</span> lag 0 &nbsp; <span style="color:var(--amber)">●</span> lagging</span>
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<TopicInfo> Topics { get; set; } = [];
+    [Parameter] public IReadOnlyList<GroupInfo> Groups { get; set; } = [];
+    [Parameter] public IReadOnlyDictionary<string, double> Rates { get; set; } = new Dictionary<string, double>();
+    [Parameter] public int MaxTopics { get; set; } = 10;
+    [CascadingParameter] public L10n L { get; set; } = new();
+
+    private static string Short(string s)
+    {
+        s = s.StartsWith("__flow:") ? "flow:" + s[7..] : s;
+        return s.Length > 13 ? s[..12] + "…" : s;
+    }
+    private static string Num(double v) => v.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    private static string Tri(int x1, int y1, int x2, int y2, int x3, int y3) => $"{x1},{y1} {x2},{y2} {x3},{y3}";
+}

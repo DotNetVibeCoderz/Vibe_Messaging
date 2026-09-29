@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>BigPipe.Analytics.Gravicode</PackageId>
+    <Description>Gravicode AI ecosystem for BigPipe realtime analytics: GravicodeScience (GraviNum, GraviFrame DataFrames, GraviLearn clustering and one-class SVM, GraviText sentiment), HF.Net transformers (classification, embeddings, semantic filters) and MediaPipe.NET text tasks (sentiment, language detection). Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BigPipe.Analytics\BigPipe.Analytics.csproj" />
+    <PackageReference Include="Gravicode.Science.GraviLearn" Version="1.0.0" />
+    <PackageReference Include="Gravicode.Science.GraviText" Version="1.0.0" />
+    <PackageReference Include="Gravicode.HFNet.GraviTransformers" Version="0.5.0" />
+    <PackageReference Include="Gravicode.MediaPipeNet.Tasks.Text" Version="1.0.0" />
+    <PackageReference Include="Gravicode.MediaPipeNet.Models.Text" Version="1.0.0" />
+    <!-- Native ONNX Runtime so Windows does not load the older System32 onnxruntime.dll. -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.24.4" />
+  </ItemGroup>
+
+</Project>

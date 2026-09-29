@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <Description>BigPipe Console: web UI for topics, storage modes, consumer lag, flows and schemas. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</Description>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\sdk\dotnet\src\BigPipe.Client\BigPipe.Client.csproj" />
+  </ItemGroup>
+
+</Project>

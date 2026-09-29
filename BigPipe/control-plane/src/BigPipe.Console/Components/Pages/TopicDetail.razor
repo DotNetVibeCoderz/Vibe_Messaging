@@ -1,0 +1,351 @@
+@page "/topics/{Name}"
+@implements IAsyncDisposable
+@inject ClusterState State
+@inject ConsoleOptions Options
+@inject NavigationManager Nav
+
+<PageTitle>BigPipe · @Name</PageTitle>
+
+<p class="muted" style="margin:0"><a href="topics">@L.T("nav.topics")</a> /</p>
+<h1 class="title" style="text-transform:none">@Name</h1>
+
+@if (_topic is null)
+{
+    @if (_error is not null)
+    {
+        <div class="notice error">@_error</div>
+    }
+    else
+    {
+        <p class="muted">Loading…</p>
+    }
+}
+else
+{
+    <section class="readouts">
+        <div class="readout"><div class="k">@L.T("topics.mode")</div><Material Mode="_topic.Mode" /></div>
+        <div class="readout"><div class="k">@L.T("topics.partitions")</div><div class="v">@_topic.Partitions</div></div>
+        <div class="readout"><div class="k">@L.T("topics.records")</div><div class="v">@Format.Count(_topic.Records)</div></div>
+        <div class="readout"><div class="k">@L.T("topics.stored")</div><div class="v">@Format.Bytes(_topic.Bytes.Total)</div>
+            <div style="margin-top:8px"><StorageBar Bytes="_topic.Bytes" /></div></div>
+    </section>
+
+    <div class="tabs" role="tablist">
+        @foreach (var (id, label) in new[] { ("messages", "topic.messages"), ("live", "topic.live"), ("produce", "topic.produce"), ("partitions", "topic.partitions"), ("config", "topic.config") })
+        {
+            <button role="tab" aria-selected="@(_tab == id)" class="@(_tab == id ? "on" : "")" @onclick="() => SwitchTab(id)">@L.T(label)</button>
+        }
+    </div>
+
+    @switch (_tab)
+    {
+        case "messages":
+            <div class="row">
+                <label class="field grow">@L.T("topic.filter")
+                    <input @bind="_filter" placeholder="@L.T("topic.filterHint")" class="mono" />
+                </label>
+                <label class="field">Limit <input type="number" @bind="_limit" style="width:90px" /></label>
+                <button class="btn" @onclick="BrowseAsync">@L.T("topic.search")</button>
+            </div>
+            @if (_browseError is not null)
+            {
+                <div class="notice error">@_browseError</div>
+            }
+            <RecordList Records="_records" />
+            break;
+
+        case "live":
+            <div class="row">
+                <label class="field grow">@L.T("topic.filter")
+                    <input @bind="_liveFilter" placeholder="@L.T("topic.filterHint")" class="mono" disabled="@(_tail is not null)" />
+                </label>
+                @if (_tail is null)
+                {
+                    <button class="btn" @onclick="StartTail">@L.T("topic.startTail")</button>
+                }
+                else
+                {
+                    <button class="btn ghost" @onclick="StopTailAsync">@L.T("topic.stopTail")</button>
+                }
+            </div>
+            @if (_tail is not null)
+            {
+                <p class="muted">Streaming over SSE from @Options.HttpUrl — @_live.Count shown, newest first.</p>
+            }
+            @if (_liveError is not null)
+            {
+                <div class="notice error">@_liveError</div>
+            }
+            <RecordList Records="_live" />
+            break;
+
+        case "produce":
+            <div class="two-col">
+                <div>
+                    <label class="field">@L.T("topic.key") <input @bind="_key" /></label>
+                    <label class="field" style="margin-top:10px">@L.T("topic.value") <textarea @bind="_value" rows="6"></textarea></label>
+                </div>
+                <div>
+                    <label class="field">@L.T("topic.headers") <textarea @bind="_headers" rows="4" placeholder="region=ID"></textarea></label>
+                    <label class="field" style="margin-top:10px">Count <input type="number" min="1" max="10000" @bind="_count" style="width:110px" /></label>
+                    <button class="btn" style="margin-top:12px" @onclick="ProduceAsync">@L.T("topic.send")</button>
+                </div>
+            </div>
+            @if (_produceMessage is not null)
+            {
+                <div class="notice @(_produceOk ? "ok" : "error")">@_produceMessage</div>
+            }
+            break;
+
+        case "partitions":
+            <div class="table-wrap">
+                <table class="grid">
+                    <thead><tr><th>#</th><th class="num">Log start</th><th class="num">High watermark</th><th class="num">Local</th><th class="num">Object</th><th class="num">Diskless</th><th class="num">Segments</th><th class="num">Extents</th></tr></thead>
+                    <tbody>
+                        @foreach (var p in _topic.PartitionDetails ?? [])
+                        {
+                            <tr>
+                                <td>@p.Partition</td>
+                                <td class="num">@p.LogStartOffset</td>
+                                <td class="num">@p.HighWatermark</td>
+                                <td class="num">@Format.Bytes(p.LocalBytes)</td>
+                                <td class="num">@Format.Bytes(p.RemoteBytes)</td>
+                                <td class="num">@Format.Bytes(p.DisklessBytes)</td>
+                                <td class="num">@p.Segments (@p.RemoteSegments remote)</td>
+                                <td class="num">@p.DisklessExtents</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            break;
+
+        case "config":
+            <div class="two-col">
+                <div class="panel">
+                    <h3>@L.T("topic.migrate")</h3>
+                    <div class="segmented">
+                        @foreach (var m in new[] { StorageMode.Local, StorageMode.Tiered, StorageMode.Diskless })
+                        {
+                            <button type="button" class="@(_topic.Mode == m ? "on" : "") @Format.ModeClass(m)" disabled="@(_topic.Mode == m)" @onclick="() => MigrateAsync(m)">
+                                <i></i>@m.ToString().ToLowerInvariant()
+                            </button>
+                        }
+                    </div>
+                    <p class="muted">@L.T("topic.migrateHint")</p>
+                    <button class="btn danger small" @onclick="DeleteAsync">@(_confirmDelete ? "Click again to delete permanently" : L.T("topic.delete"))</button>
+                </div>
+                <div class="panel">
+                    <h3>@L.T("topic.config")</h3>
+                    <table class="grid">
+                        <tbody>
+                            @foreach (var (k, v) in _topic.EffectiveConfig)
+                            {
+                                <tr>
+                                    <td class="mono">@k</td>
+                                    <td>
+                                        <input class="inline mono" value="@(_edits.TryGetValue(k, out var e) ? e : v)" @onchange="ev => _edits[k] = ev.Value?.ToString() ?? v" style="width:100%" />
+                                    </td>
+                                    <td>@(_topic.Config.ContainsKey(k) ? "set" : "default")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <button class="btn small" style="margin-top:10px" disabled="@(_edits.Count == 0)" @onclick="SaveConfigAsync">@L.T("common.save")</button>
+                </div>
+            </div>
+            @if (_configMessage is not null)
+            {
+                <div class="notice @(_configOk ? "ok" : "error")">@_configMessage</div>
+            }
+            break;
+    }
+}
+
+@code {
+    [Parameter] public string Name { get; set; } = "";
+    [CascadingParameter] public L10n L { get; set; } = new();
+
+    private TopicInfo? _topic;
+    private string? _error;
+    private string _tab = "messages";
+    private string? _filter;
+    private int _limit = 50;
+    private List<HttpRecord> _records = [];
+    private string? _browseError;
+    private string? _liveFilter;
+    private readonly List<HttpRecord> _live = [];
+    private CancellationTokenSource? _tail;
+    private string? _liveError;
+    private string? _key;
+    private string _value = "{\"id\": 1, \"amount\": 150000, \"currency\": \"IDR\"}";
+    private string? _headers;
+    private int _count = 1;
+    private string? _produceMessage;
+    private bool _produceOk;
+    private readonly Dictionary<string, string> _edits = new();
+    private string? _configMessage;
+    private bool _configOk;
+    private bool _confirmDelete;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+        await BrowseAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _topic = await State.Admin.GetTopicAsync(Name);
+            _error = null;
+        }
+        catch (Exception e)
+        {
+            _error = e.Message;
+        }
+    }
+
+    private async Task SwitchTab(string id)
+    {
+        _tab = id;
+        if (id == "partitions" || id == "config") await LoadAsync();
+    }
+
+    private async Task BrowseAsync()
+    {
+        try
+        {
+            _records = await State.Admin.BrowseAsync(Name, Math.Clamp(_limit, 1, 1000), filter: _filter);
+            _browseError = null;
+        }
+        catch (Exception e)
+        {
+            _browseError = e.Message;
+        }
+    }
+
+    private void StartTail()
+    {
+        _tail = new CancellationTokenSource();
+        _live.Clear();
+        _liveError = null;
+        var ct = _tail.Token;
+        _ = Task.Run(async () =>
+        {
+            using var http = new BigPipeHttpClient(Options.HttpUrl);
+            try
+            {
+                await foreach (var r in http.StreamAsync(Name, "latest", _liveFilter, ct: ct))
+                {
+                    _live.Insert(0, r);
+                    if (_live.Count > 200) _live.RemoveAt(_live.Count - 1);
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception e)
+            {
+                _liveError = e.Message;
+                _tail = null;
+                await InvokeAsync(StateHasChanged);
+            }
+        }, ct);
+    }
+
+    private async Task StopTailAsync()
+    {
+        if (_tail is { } t)
+        {
+            await t.CancelAsync();
+            t.Dispose();
+        }
+        _tail = null;
+    }
+
+    private async Task ProduceAsync()
+    {
+        try
+        {
+            var headers = (_headers ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(l => l.Split('=', 2)).Where(p => p.Length == 2).ToDictionary(p => p[0].Trim(), p => p[1].Trim());
+            using var http = new BigPipeHttpClient(Options.HttpUrl);
+            var records = Enumerable.Range(0, Math.Clamp(_count, 1, 10_000)).Select(_ => new HttpProduceRecord
+            {
+                Key = string.IsNullOrWhiteSpace(_key) ? null : _key,
+                Value = _value,
+                Headers = headers.Count > 0 ? headers : null,
+            });
+            var offsets = await http.ProduceAsync(Name, records);
+            _produceOk = true;
+            _produceMessage = offsets.Count == 1
+                ? $"Written to partition {offsets[0].Partition} at offset {offsets[0].Offset}."
+                : $"Wrote {offsets.Count} records across {offsets.Select(o => o.Partition).Distinct().Count()} partition(s).";
+            await LoadAsync();
+        }
+        catch (Exception e)
+        {
+            _produceOk = false;
+            _produceMessage = e.Message;
+        }
+    }
+
+    private async Task MigrateAsync(StorageMode to)
+    {
+        try
+        {
+            var r = await State.Admin.MigrateAsync(Name, to);
+            _configOk = true;
+            _configMessage = $"New data now goes to {r.To.ToString().ToLowerInvariant()} storage. Offsets below {string.Join(", ", r.SwitchOffsets.Select(kv => $"p{kv.Key}:{kv.Value}"))} stay on {r.From.ToString().ToLowerInvariant()}.";
+            await LoadAsync();
+            await State.RefreshNowAsync();
+        }
+        catch (Exception e)
+        {
+            _configOk = false;
+            _configMessage = e.Message;
+        }
+    }
+
+    private async Task SaveConfigAsync()
+    {
+        try
+        {
+            await State.Admin.UpdateConfigAsync(Name, _edits.ToDictionary(kv => kv.Key, kv => (string?)kv.Value));
+            _configOk = true;
+            _configMessage = $"Saved {_edits.Count} setting(s).";
+            _edits.Clear();
+            await LoadAsync();
+        }
+        catch (Exception e)
+        {
+            _configOk = false;
+            _configMessage = e.Message;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (!_confirmDelete)
+        {
+            _confirmDelete = true;
+            return;
+        }
+        try
+        {
+            await State.Admin.DeleteTopicAsync(Name);
+            await State.RefreshNowAsync();
+            Nav.NavigateTo("topics");
+        }
+        catch (Exception e)
+        {
+            _configOk = false;
+            _configMessage = e.Message;
+        }
+    }
+
+    public async ValueTask DisposeAsync() => await StopTailAsync();
+}

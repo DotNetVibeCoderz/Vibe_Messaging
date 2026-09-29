@@ -1,0 +1,80 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject ClusterState State
+@inject NavigationManager Nav
+
+<div class="shell">
+    <nav class="rail" aria-label="Main">
+        <a class="wordmark" href="">Big<span>Pipe</span></a>
+        <NavLink class="nav" href="" Match="NavLinkMatch.All">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" /><path d="M12 13l4-4M7 17h10" /></svg>@L.T("nav.overview")
+        </NavLink>
+        <NavLink class="nav" href="topics">
+            <svg viewBox="0 0 24 24"><path d="M3 9h18M3 15h18M6 7v10M18 7v10" /></svg>@L.T("nav.topics")
+        </NavLink>
+        <NavLink class="nav" href="groups">
+            <svg viewBox="0 0 24 24"><path d="M4 7l8 5-8 5zM20 7l-8 5 8 5zM12 12V5M9 5h6" /></svg>@L.T("nav.groups")
+        </NavLink>
+        <NavLink class="nav" href="flows">
+            <svg viewBox="0 0 24 24"><rect x="8" y="7" width="8" height="10" rx="1" /><path d="M2 12h6M16 12h6M19 9l3 3-3 3" /></svg>@L.T("nav.flows")
+        </NavLink>
+        <NavLink class="nav" href="schemas">
+            <svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM10 11l-2 2 2 2M14 11l2 2-2 2" /></svg>@L.T("nav.schemas")
+        </NavLink>
+        <div class="spacer"></div>
+        <NavLink class="nav" href="about">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></svg>@L.T("nav.about")
+        </NavLink>
+    </nav>
+
+    <main class="page">
+        <header class="nameplate" aria-label="Cluster">
+            <div class="cell">
+                <div class="k">@L.T("plate.cluster")</div>
+                <div class="v"><span class="dot @(State.Online ? "" : "down")"></span>@(State.Cluster?.ClusterId ?? "offline")</div>
+            </div>
+            <div class="cell"><div class="k">@L.T("plate.node")</div><div class="v">@(State.Cluster?.NodeId.ToString() ?? "–")</div></div>
+            <div class="cell"><div class="k">@L.T("plate.version")</div><div class="v">@(State.Cluster?.Version ?? "–")</div></div>
+            <div class="cell"><div class="k">@L.T("plate.uptime")</div><div class="v">@(State.Cluster is { } c ? Format.Duration(c.UptimeSeconds) : "–")</div></div>
+            <div class="cell"><div class="k">@L.T("plate.kafka")</div><div class="v">@(State.Cluster?.Listeners.Kafka ?? "–")</div></div>
+            <div class="cell tools">
+                <a class="btn ghost small" href="@($"prefs/lang/{(L.IsIndonesian ? "en" : "id")}?returnUrl=/{Nav.ToBaseRelativePath(Nav.Uri)}")" data-enhance-nav="false"
+                   title="Language / Bahasa">@(L.IsIndonesian ? "EN" : "ID")</a>
+                <a class="btn ghost small" href="@($"prefs/theme/{NextTheme}?returnUrl=/{Nav.ToBaseRelativePath(Nav.Uri)}")" data-enhance-nav="false"
+                   title="Theme">@ThemeLabel</a>
+            </div>
+        </header>
+
+        @if (!State.Online && State.Error is not null)
+        {
+            <div class="notice error" role="alert">@L.T("common.offline") <span class="muted">(@State.Error)</span></div>
+        }
+
+        @Body
+
+        <footer class="credit">
+            <span>BigPipe — high performance realtime stream processing platform</span>
+            <span>Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil</span>
+        </footer>
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">×</span>
+</div>
+
+@code {
+    [CascadingParameter] public L10n L { get; set; } = new();
+    [CascadingParameter(Name = "Theme")] public string Theme { get; set; } = "auto";
+
+    private string NextTheme => Theme switch { "auto" => "dark", "dark" => "light", _ => "auto" };
+    private string ThemeLabel => Theme switch { "dark" => "◐ Dark", "light" => "◑ Light", _ => "◒ Auto" };
+
+    protected override void OnInitialized() => State.Changed += OnChanged;
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => State.Changed -= OnChanged;
+}

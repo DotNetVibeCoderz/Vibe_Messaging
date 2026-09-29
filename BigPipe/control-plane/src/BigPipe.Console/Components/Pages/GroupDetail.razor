@@ -1,0 +1,147 @@
+@page "/groups/{Id}"
+@implements IDisposable
+@inject ClusterState State
+
+<PageTitle>BigPipe · @Id</PageTitle>
+
+<p class="muted" style="margin:0"><a href="groups">@L.T("nav.groups")</a> /</p>
+<h1 class="title" style="text-transform:none">@Id</h1>
+
+@if (_group is null)
+{
+    <p class="muted">@(_error ?? "Loading…")</p>
+}
+else
+{
+    var maxLag = _group.Offsets?.Count > 0 ? _group.Offsets.Max(o => o.Lag) : 0;
+    <section class="readouts">
+        <div class="readout"><div class="k">@L.T("groups.state")</div><div class="v" style="font-size:28px">@(_group.Summary?.State ?? "Empty")</div></div>
+        <div class="readout"><div class="k">Kind</div><div class="v" style="font-size:28px">@(_group.Summary?.Kind ?? "–")</div></div>
+        <div class="readout"><div class="k">@L.T("groups.members")</div><div class="v">@(_group.Summary?.Members.Count ?? 0)</div></div>
+        <div class="readout @(_group.Lag > 0 ? "warn" : "")"><div class="k">@L.T("groups.lag")</div><div class="v">@Format.Count(_group.Lag)</div></div>
+    </section>
+
+    <h2 class="section">Partitions</h2>
+    <div class="table-wrap">
+        <table class="grid">
+            <thead><tr><th>Topic</th><th class="num">Partition</th><th class="num">Committed</th><th class="num">End</th><th class="num">@L.T("groups.lag")</th><th></th><th>Committed at</th></tr></thead>
+            <tbody>
+                @foreach (var o in _group.Offsets ?? [])
+                {
+                    <tr>
+                        <td><a href="@($"topics/{Uri.EscapeDataString(o.Topic)}")">@o.Topic</a></td>
+                        <td class="num">@o.Partition</td>
+                        <td class="num">@o.Committed</td>
+                        <td class="num">@o.HighWatermark</td>
+                        <td class="num">@o.Lag</td>
+                        <td style="width:140px"><LagBar Lag="o.Lag" Max="maxLag" /></td>
+                        <td class="muted">@DateTimeOffset.FromUnixTimeMilliseconds(o.CommitMs).ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (_group.Summary?.Members.Count > 0)
+    {
+        <h2 class="section">@L.T("groups.members")</h2>
+        <table class="grid">
+            <thead><tr><th>Member</th><th>Client</th><th>Host</th><th>Assignment</th></tr></thead>
+            <tbody>
+                @foreach (var m in _group.Summary.Members)
+                {
+                    <tr>
+                        <td class="mono">@m.MemberId</td>
+                        <td>@m.ClientId</td>
+                        <td class="muted">@m.ClientHost</td>
+                        <td class="mono">@string.Join(", ", m.Assignment.Select(a => $"{a.Topic}-{a.Partition}"))</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h2 class="section">@L.T("groups.reset")</h2>
+    <div class="panel">
+        <div class="row">
+            <label class="field">Topic
+                <select @bind="_resetTopic">
+                    @foreach (var t in (_group.Offsets ?? []).Select(o => o.Topic).Distinct())
+                    {
+                        <option value="@t">@t</option>
+                    }
+                </select>
+            </label>
+            <label class="field">To
+                <select @bind="_resetTo"><option value="earliest">earliest</option><option value="latest">latest</option><option value="offset">offset</option></select>
+            </label>
+            @if (_resetTo == "offset")
+            {
+                <label class="field">Offset <input type="number" @bind="_resetOffset" style="width:130px" /></label>
+            }
+            <button class="btn" @onclick="ResetAsync" disabled="@string.IsNullOrEmpty(_resetTopic)">@L.T("groups.reset")</button>
+        </div>
+        <p class="muted">Stop the group's consumers first; a live group rejects resets.</p>
+        @if (_message is not null)
+        {
+            <div class="notice @(_ok ? "ok" : "error")">@_message</div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public string Id { get; set; } = "";
+    [CascadingParameter] public L10n L { get; set; } = new();
+    private GroupInfo? _group;
+    private string? _error;
+    private string? _resetTopic;
+    private string _resetTo = "earliest";
+    private long _resetOffset;
+    private string? _message;
+    private bool _ok;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+        _resetTopic ??= _group?.Offsets?.FirstOrDefault()?.Topic;
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _group = await State.Admin.GetGroupAsync(Id);
+            _error = null;
+        }
+        catch (Exception e)
+        {
+            _error = e.Message;
+        }
+    }
+
+    private async Task ResetAsync()
+    {
+        try
+        {
+            await State.Admin.ResetGroupAsync(Id, _resetTopic!, _resetTo, _resetTo == "offset" ? _resetOffset : null);
+            _ok = true;
+            _message = $"Offsets for {_resetTopic} reset to {(_resetTo == "offset" ? _resetOffset.ToString() : _resetTo)}.";
+            await LoadAsync();
+        }
+        catch (Exception e)
+        {
+            _ok = false;
+            _message = e.Message;
+        }
+    }
+
+    protected override void OnInitialized() => State.Changed += OnChanged;
+
+    private void OnChanged() => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    public void Dispose() => State.Changed -= OnChanged;
+}

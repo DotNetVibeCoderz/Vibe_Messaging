@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- BigPipe mark: a copper pipe run (local disk) bending down into storage, galvanized flanges, and a water drop (object storage). -->
+  <rect width="512" height="512" rx="96" fill="#10211f"/>
+  <path d="M40 176 H300 a76 76 0 0 1 76 76 V472" fill="none" stroke="#c0662f" stroke-width="84" stroke-linecap="butt"/>
+  <path d="M40 176 H300 a76 76 0 0 1 76 76 V472" fill="none" stroke="#f1e2d6" stroke-width="14" stroke-dasharray="16 40" stroke-linecap="round"/>
+  <rect x="40" y="120" width="34" height="112" rx="6" fill="#8b9aa1"/>
+  <rect x="320" y="438" width="112" height="34" rx="6" fill="#8b9aa1"/>
+  <rect x="190" y="126" width="20" height="100" rx="4" fill="#8b9aa1"/>
+  <path d="M404 44 C404 44 356 104 356 132 a48 48 0 0 0 96 0 C452 104 404 44 404 44 Z" fill="#2a8ca6"/>
+  <path d="M388 128 a18 18 0 0 0 16 20" fill="none" stroke="#bfe6ef" stroke-width="8" stroke-linecap="round"/>
+</svg>

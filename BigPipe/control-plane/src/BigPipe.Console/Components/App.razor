@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="@_lang" data-theme="@_theme">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <title>BigPipe Console</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600;700&display=swap" />
+    <ResourcePreloader />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <ImportMap />
+    <HeadOutlet />
+</head>
+
+<body>
+    <Routes @rendermode="InteractiveServer" Lang="@_lang" Theme="@_theme" />
+    <ReconnectModal />
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+</body>
+
+</html>
+
+@code {
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+    private string _lang = "en";
+    private string _theme = "auto";
+
+    protected override void OnInitialized()
+    {
+        _lang = HttpContext?.Request.Cookies["bp_lang"] == "id" ? "id" : "en";
+        _theme = HttpContext?.Request.Cookies["bp_theme"] is "dark" or "light" ? HttpContext.Request.Cookies["bp_theme"]! : "auto";
+    }
+}

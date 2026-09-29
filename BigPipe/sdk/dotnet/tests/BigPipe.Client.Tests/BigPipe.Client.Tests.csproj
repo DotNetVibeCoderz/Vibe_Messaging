@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="TorchSharp-cpu" Version="0.107.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BigPipe.Client\BigPipe.Client.csproj" />
+    <ProjectReference Include="..\..\src\BigPipe.Streams\BigPipe.Streams.csproj" />
+    <ProjectReference Include="..\..\src\BigPipe.Analytics.Scripting\BigPipe.Analytics.Scripting.csproj" />
+    <ProjectReference Include="..\..\src\BigPipe.Analytics.ML\BigPipe.Analytics.ML.csproj" />
+    <ProjectReference Include="..\..\src\BigPipe.Analytics.Torch\BigPipe.Analytics.Torch.csproj" />
+    <ProjectReference Include="..\..\src\BigPipe.Analytics.Gravicode\BigPipe.Analytics.Gravicode.csproj" />
+  </ItemGroup>
+
+</Project>

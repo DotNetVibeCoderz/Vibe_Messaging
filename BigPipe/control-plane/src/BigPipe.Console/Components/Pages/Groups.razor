@@ -1,0 +1,51 @@
+@page "/groups"
+@implements IDisposable
+@inject ClusterState State
+
+<PageTitle>BigPipe · @L.T("nav.groups")</PageTitle>
+
+<h1 class="title">@L.T("groups.title")</h1>
+<p class="lede">@L.T("groups.lede")</p>
+
+@{
+    var groups = State.Groups.OrderByDescending(g => g.Lag).ThenBy(g => g.GroupId).ToList();
+    var maxLag = groups.Count == 0 ? 0 : groups.Max(g => g.Lag);
+}
+@if (groups.Count == 0)
+{
+    <div class="empty">@L.T("common.none")</div>
+}
+else
+{
+    <div class="table-wrap">
+        <table class="grid">
+            <thead>
+                <tr><th>Group</th><th>Kind</th><th>@L.T("groups.state")</th><th class="num">@L.T("groups.members")</th><th>@L.T("nav.topics")</th><th class="num">@L.T("groups.lag")</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var g in groups)
+                {
+                    <tr>
+                        <td><a href="@($"groups/{Uri.EscapeDataString(g.GroupId)}")">@g.GroupId</a></td>
+                        <td class="muted">@(g.Summary?.Kind ?? "–")</td>
+                        <td>@(g.Summary?.State ?? "Empty")</td>
+                        <td class="num">@(g.Summary?.Members.Count ?? 0)</td>
+                        <td class="mono">@string.Join(", ", g.Topics ?? [])</td>
+                        <td class="num">@Format.Count(g.Lag)</td>
+                        <td style="width:150px"><LagBar Lag="g.Lag" Max="maxLag" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [CascadingParameter] public L10n L { get; set; } = new();
+
+    protected override void OnInitialized() => State.Changed += OnChanged;
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => State.Changed -= OnChanged;
+}

@@ -1,0 +1,51 @@
+@page "/about"
+@inject ClusterState State
+@inject ConsoleOptions Options
+
+<PageTitle>BigPipe · @L.T("nav.about")</PageTitle>
+
+<h1 class="title">@L.T("about.title")</h1>
+<p class="lede">
+    @if (L.IsIndonesian)
+    {
+        <text>BigPipe adalah platform event streaming dan stream processing yang kompatibel dengan protokol Kafka, dengan mode penyimpanan per topic: disk lokal, tiered, atau diskless langsung ke object storage.</text>
+    }
+    else
+    {
+        <text>BigPipe is a Kafka-compatible event streaming and stream processing platform with per-topic storage: local disk, tiered, or diskless straight to object storage.</text>
+    }
+</p>
+
+<div class="panel">
+    <h3>Credits</h3>
+    <p style="font-family:var(--font-display);font-size:30px;font-weight:700;margin:4px 0 8px;letter-spacing:0.02em">Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil</p>
+    <p class="muted" style="margin:0">Made by Gravicode Studios, led by Kang Fadhil. Licensed under Apache-2.0.</p>
+</div>
+
+<h2 class="section">Endpoints</h2>
+<table class="grid">
+    <tbody>
+        <tr><td>Kafka protocol</td><td class="mono">@(State.Cluster?.Listeners.Kafka ?? "–")</td></tr>
+        <tr><td>Admin API</td><td class="mono">@Options.AdminUrl</td></tr>
+        <tr><td>HTTP gateway (REST · SSE · share groups)</td><td class="mono">@Options.HttpUrl</td></tr>
+        <tr><td>Schema Registry</td><td class="mono">@Options.RegistryUrl</td></tr>
+        <tr><td>Object storage</td><td class="mono">@(State.Cluster?.ObjectStore ?? "–")</td></tr>
+        <tr><td>Shards (threads)</td><td class="mono">@(State.Cluster?.Shards.ToString() ?? "–")</td></tr>
+    </tbody>
+</table>
+
+<h2 class="section">SDKs</h2>
+<table class="grid">
+    <tbody>
+        <tr><td>.NET</td><td class="mono">BigPipe.Client · BigPipe.Streams · BigPipe.Analytics.*</td></tr>
+        <tr><td>Python</td><td class="mono">pip install bigpipe</td></tr>
+        <tr><td>TypeScript / Node.js</td><td class="mono">npm install bigpipe-client</td></tr>
+        <tr><td>Go</td><td class="mono">go get github.com/DotNetVibeCoderz/Vibe_Messaging/BigPipe/sdk/go</td></tr>
+        <tr><td>Java</td><td class="mono">io.gravicode:bigpipe-client</td></tr>
+        <tr><td>Any Kafka client</td><td class="mono">bootstrap.servers=@(State.Cluster?.Listeners.Kafka ?? "localhost:9092")</td></tr>
+    </tbody>
+</table>
+
+@code {
+    [CascadingParameter] public L10n L { get; set; } = new();
+}

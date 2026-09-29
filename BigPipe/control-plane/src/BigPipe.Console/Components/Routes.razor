@@ -1,0 +1,18 @@
+<CascadingValue Value="_l10n" IsFixed="true">
+    <CascadingValue Value="Theme" Name="Theme">
+        <Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+            <Found Context="routeData">
+                <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+                <FocusOnNavigate RouteData="routeData" Selector="h1" />
+            </Found>
+        </Router>
+    </CascadingValue>
+</CascadingValue>
+
+@code {
+    [Parameter] public string Lang { get; set; } = "en";
+    [Parameter] public string Theme { get; set; } = "auto";
+    private readonly BigPipe.Console.Services.L10n _l10n = new();
+
+    protected override void OnParametersSet() => _l10n.Lang = Lang;
+}

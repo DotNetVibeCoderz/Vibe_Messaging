@@ -1,0 +1,24 @@
+[package]
+name = "bp-gateway"
+description = "BigPipe HTTP gateway: REST produce/consume, SSE streaming, server-assigned groups, share groups and the admin API"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+bp-broker.workspace = true
+bp-protocol.workspace = true
+bp-storage.workspace = true
+bp-expr.workspace = true
+axum.workspace = true
+tower-http.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+bytes.workspace = true
+futures.workspace = true
+base64.workspace = true
+tracing.workspace = true
+async-stream = "0.3"
+serde_yaml_ng.workspace = true

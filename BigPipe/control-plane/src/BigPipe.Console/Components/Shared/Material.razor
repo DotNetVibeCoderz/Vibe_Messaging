@@ -1,0 +1,9 @@
+@* Storage mode shown as its pipe material. *@
+<span class="material @Format.ModeClass(Mode)" title="@Title"><i></i>@Label</span>
+
+@code {
+    [Parameter] public StorageMode Mode { get; set; }
+    [CascadingParameter] public L10n L { get; set; } = new();
+    private string Label => Mode.ToString().ToLowerInvariant();
+    private string Title => L.T("mode." + Label);
+}

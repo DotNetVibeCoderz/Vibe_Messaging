@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>BigPipe.Analytics.Scripting</PackageId>
+    <Description>Dynamic scripting for BigPipe realtime analytics: filter, project and query streams with C# (Roslyn), Python (IronPython) or JavaScript (Jint) expressions compiled at runtime. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BigPipe.Analytics\BigPipe.Analytics.csproj" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="5.9.0" />
+    <PackageReference Include="Jint" Version="4.16.4" />
+    <PackageReference Include="IronPython" Version="3.4.2" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,11 @@
+[package]
+name = "bp-expr"
+description = "bpql: the small expression language used for server-side filters, share-group filters and flow mappings"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+thiserror.workspace = true

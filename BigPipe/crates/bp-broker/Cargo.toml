@@ -1,0 +1,25 @@
+[package]
+name = "bp-broker"
+description = "BigPipe broker core: thread-per-core shards, diskless agent, group coordinator and Kafka protocol server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+bp-protocol.workspace = true
+bp-storage.workspace = true
+bp-expr.workspace = true
+tokio.workspace = true
+bytes.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true
+futures.workspace = true
+uuid.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

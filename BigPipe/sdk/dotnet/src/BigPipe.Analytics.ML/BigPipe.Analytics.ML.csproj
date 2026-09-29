@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>BigPipe.Analytics.ML</PackageId>
+    <Description>ML.NET for BigPipe realtime analytics: spike and change-point detection, SR-CNN window anomaly detection, SSA forecasting, streaming classifiers that retrain on the fly and scoring of saved ML.NET models. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BigPipe.Analytics\BigPipe.Analytics.csproj" />
+    <PackageReference Include="Microsoft.ML" Version="5.0.0" />
+    <PackageReference Include="Microsoft.ML.TimeSeries" Version="5.0.0" />
+  </ItemGroup>
+
+</Project>

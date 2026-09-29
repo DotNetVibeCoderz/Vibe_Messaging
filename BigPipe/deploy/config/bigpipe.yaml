@@ -1,0 +1,41 @@
+# bigpiped configuration. Every key is optional; these are the defaults.
+# Run: bigpiped --mode node --config deploy/config/bigpipe.yaml
+node_id: 1
+cluster_id: bigpipe-dev
+data_dir: ./data
+
+# Listeners
+kafka_addr: 0.0.0.0:9092          # Kafka wire protocol (dual-stack IPv4/IPv6)
+advertised_host: localhost        # host clients should connect to (Metadata responses)
+advertised_port: 9092
+http_addr: 0.0.0.0:8082           # REST / SSE gateway, HTTP groups, share groups
+admin_addr: 0.0.0.0:9644          # Admin API (Console, bpctl, AdminApi gateway)
+metrics_addr: 0.0.0.0:9645        # /metrics (OpenMetrics)
+rack: null
+
+# Threads: one shard (event loop) per core; 0 = number of CPU cores
+shards: 0
+
+# Object storage for tiered and diskless topics.
+# s3://bucket/prefix (AWS_* env vars; AWS_ENDPOINT for MinIO), gs://bucket, az://container/prefix,
+# memory://, or a directory. Empty = <data_dir>/objects.
+object_store_url: ""
+object_cache_bytes: 268435456     # LRU cache of object data (read-your-write for diskless)
+
+# Diskless agent batching: flush after this long or this many bytes, whichever comes first
+diskless_linger_ms: 100
+diskless_max_file_bytes: 8388608
+
+# Topics
+auto_create_topics: true
+default_partitions: 3
+default_storage_mode: local       # local | tiered | diskless
+
+# Consumer groups
+group_initial_rebalance_delay_ms: 300
+group_min_session_timeout_ms: 1000
+group_max_session_timeout_ms: 300000
+
+# Security: when set, the admin API requires "Authorization: Bearer <key>"
+admin_api_key: null
+max_request_bytes: 104857600

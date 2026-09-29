@@ -1,0 +1,118 @@
+@page "/schemas"
+@inject ConsoleOptions Options
+@inject IHttpClientFactory HttpFactory
+
+<PageTitle>BigPipe · @L.T("nav.schemas")</PageTitle>
+
+<h1 class="title">@L.T("schemas.title")</h1>
+<p class="lede">@L.T("schemas.lede")</p>
+
+@if (_error is not null)
+{
+    <div class="notice error">@L.T("schemas.unreachable") <code>@Options.RegistryUrl</code> — @_error</div>
+}
+else if (_subjects is null)
+{
+    <p class="muted">Loading…</p>
+}
+else if (_subjects.Count == 0)
+{
+    <div class="empty">@L.T("common.none")</div>
+}
+else
+{
+    <div class="two-col" style="grid-template-columns: minmax(240px, 320px) 1fr">
+        <div class="panel">
+            <h3>Subjects · @_compat</h3>
+            <table class="grid">
+                <tbody>
+                    @foreach (var s in _subjects)
+                    {
+                        <tr>
+                            <td><a href="javascript:void(0)" @onclick="() => SelectAsync(s)" style="@(s == _selected ? "color:var(--copper)" : "")">@s</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="panel">
+            @if (_version is null)
+            {
+                <p class="muted">Select a subject to see its versions.</p>
+            }
+            else
+            {
+                <h3>@_selected · v@(_version.Value.GetProperty("version").GetInt32()) · id @(_version.Value.GetProperty("id").GetInt32()) · @(_version.Value.TryGetProperty("schemaType", out var st) ? st.GetString() : "AVRO")</h3>
+                <div class="row" style="margin-bottom:10px">
+                    @foreach (var v in _versions)
+                    {
+                        <button class="btn small @(v == _version.Value.GetProperty("version").GetInt32() ? "" : "ghost")" @onclick="() => LoadVersionAsync(v)">v@(v)</button>
+                    }
+                </div>
+                <pre style="white-space:pre-wrap;margin:0">@Pretty(_version.Value.GetProperty("schema").GetString())</pre>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter] public L10n L { get; set; } = new();
+    private List<string>? _subjects;
+    private string? _error;
+    private string? _selected;
+    private List<int> _versions = [];
+    private System.Text.Json.JsonElement? _version;
+    private string _compat = "";
+
+    private HttpClient Http()
+    {
+        var c = HttpFactory.CreateClient();
+        c.BaseAddress = new Uri(Options.RegistryUrl.TrimEnd('/') + "/");
+        c.Timeout = TimeSpan.FromSeconds(5);
+        return c;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            using var http = Http();
+            _subjects = await http.GetFromJsonAsync<List<string>>("subjects") ?? [];
+            var cfg = await http.GetFromJsonAsync<System.Text.Json.JsonElement>("config");
+            _compat = cfg.GetProperty("compatibilityLevel").GetString() ?? "";
+            if (_subjects.Count > 0) await SelectAsync(_subjects[0]);
+        }
+        catch (Exception e)
+        {
+            _error = e.Message;
+        }
+    }
+
+    private async Task SelectAsync(string subject)
+    {
+        _selected = subject;
+        using var http = Http();
+        _versions = await http.GetFromJsonAsync<List<int>>($"subjects/{Uri.EscapeDataString(subject)}/versions") ?? [];
+        await LoadVersionAsync(_versions.Count > 0 ? _versions[^1] : 1);
+    }
+
+    private async Task LoadVersionAsync(int v)
+    {
+        using var http = Http();
+        _version = await http.GetFromJsonAsync<System.Text.Json.JsonElement>($"subjects/{Uri.EscapeDataString(_selected!)}/versions/{v}");
+    }
+
+    private static string Pretty(string? schema)
+    {
+        if (schema is null) return "";
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(schema);
+            return System.Text.Json.JsonSerializer.Serialize(doc, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return schema;
+        }
+    }
+}

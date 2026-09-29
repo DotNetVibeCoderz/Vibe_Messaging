@@ -1,0 +1,50 @@
+# Full local stack: node + Schema Registry + Admin API gateway + Console + MinIO (S3) for object storage.
+# docker compose -f deploy/docker/docker-compose.yml up --build
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: bigpipe
+      MINIO_ROOT_PASSWORD: bigpipe-secret
+    ports: ["9000:9000", "9001:9001"]
+  minio-setup:
+    image: minio/mc:latest
+    depends_on: [minio]
+    entrypoint: ["sh", "-c", "sleep 3 && mc alias set m http://minio:9000 bigpipe bigpipe-secret && mc mb -p m/bigpipe-data"]
+  bigpiped:
+    build: { context: ../.., dockerfile: deploy/docker/Dockerfile }
+    depends_on: [minio-setup]
+    environment:
+      # Kafka clients inside the compose network reach the broker as "bigpiped". For Kafka clients on
+      # the host, add "127.0.0.1 bigpiped" to your hosts file (HTTP and admin ports work without it).
+      BIGPIPE_ADVERTISED_HOST: bigpiped
+      BIGPIPE_OBJECT_STORE: s3://bigpipe-data/cluster
+      AWS_ACCESS_KEY_ID: bigpipe
+      AWS_SECRET_ACCESS_KEY: bigpipe-secret
+      AWS_ENDPOINT: http://minio:9000
+      AWS_ALLOW_HTTP: "true"
+      AWS_REGION: us-east-1
+    ports: ["9092:9092", "8082:8082", "9644:9644", "9645:9645"]
+    volumes: [bigpipe-data:/var/lib/bigpipe]
+  schema-registry:
+    build: { context: ../.., dockerfile: deploy/docker/Dockerfile.dotnet, args: { APP: BigPipe.SchemaRegistry } }
+    environment:
+      BigPipe__Bootstrap: bigpiped:9092
+      BigPipe__AdminUrl: http://bigpiped:9644
+    ports: ["8081:8081"]
+  admin-api:
+    build: { context: ../.., dockerfile: deploy/docker/Dockerfile.dotnet, args: { APP: BigPipe.AdminApi } }
+    environment:
+      BigPipe__AdminUrl: http://bigpiped:9644
+      BigPipe__Bootstrap: bigpiped:9092
+    ports: ["9650:9650"]
+  console:
+    build: { context: ../.., dockerfile: deploy/docker/Dockerfile.dotnet, args: { APP: BigPipe.Console } }
+    environment:
+      BigPipe__AdminUrl: http://bigpiped:9644
+      BigPipe__HttpUrl: http://bigpiped:8082
+      BigPipe__RegistryUrl: http://schema-registry:8081
+    ports: ["8080:8080"]
+volumes:
+  bigpipe-data:

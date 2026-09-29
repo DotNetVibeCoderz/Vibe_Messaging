@@ -1,0 +1,32 @@
+@* Minimal area sparkline for a numeric series. *@
+<svg class="spark" viewBox="0 0 @W @H" preserveAspectRatio="none" width="100%" height="@H" aria-hidden="true">
+    @if (Values.Count > 1)
+    {
+        <path d="@Area" fill="@Color" fill-opacity="0.08" />
+        <path d="@Line" fill="none" stroke="@Color" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+    }
+</svg>
+
+@code {
+    [Parameter] public IReadOnlyList<double> Values { get; set; } = [];
+    [Parameter] public string Color { get; set; } = "var(--ink)";
+    private const int W = 200;
+    private const int H = 26;
+
+    private IEnumerable<(double X, double Y)> Points()
+    {
+        // Scale between min and max so small changes stay visible; a flat series sits mid-height.
+        var min = Values.Min();
+        var span = Values.Max() - min;
+        for (var i = 0; i < Values.Count; i++)
+        {
+            var f = span <= 1e-9 ? 0.5 : (Values[i] - min) / span;
+            yield return (i * W / (double)(Values.Count - 1), H - 3 - f * (H - 6));
+        }
+    }
+
+    private static string N(double v) => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+
+    private string Line => "M" + string.Join(" L", Points().Select(p => $"{N(p.X)},{N(p.Y)}"));
+    private string Area => Line + $" L{W},{H} L0,{H} Z";
+}

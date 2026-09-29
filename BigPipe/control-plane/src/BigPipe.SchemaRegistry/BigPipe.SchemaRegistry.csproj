@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <Description>BigPipe Schema Registry: Confluent-compatible REST API (Avro, JSON Schema, Protobuf) stored in the __bp_schemas topic. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</Description>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\sdk\dotnet\src\BigPipe.Client\BigPipe.Client.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,133 @@
+@page "/flows"
+@implements IDisposable
+@inject ClusterState State
+
+<PageTitle>BigPipe · @L.T("nav.flows")</PageTitle>
+
+<h1 class="title">@L.T("flows.title")</h1>
+<p class="lede">@L.T("flows.lede")</p>
+
+@if (State.Flows.Count == 0)
+{
+    <div class="empty">@L.T("common.none")</div>
+}
+else
+{
+    <div class="table-wrap">
+        <table class="grid">
+            <thead><tr><th>Flow</th><th>Route</th><th>Processors</th><th class="num">In</th><th class="num">Out</th><th class="num">Filtered</th><th class="num">Errors</th><th></th><th></th></tr></thead>
+            <tbody>
+                @foreach (var f in State.Flows)
+                {
+                    <tr>
+                        <td><strong>@f.Name</strong>
+                            @if (f.Stats.LastError is { } err)
+                            {
+                                <div class="muted" style="font-size:12px;color:var(--alert)">@err</div>
+                            }
+                        </td>
+                        <td class="mono"><a href="@($"topics/{Uri.EscapeDataString(f.Input)}")">@f.Input</a> → <a href="@($"topics/{Uri.EscapeDataString(f.Output)}")">@f.Output</a></td>
+                        <td class="mono" style="font-size:12px">@string.Join(" · ", f.Processors.Select(Describe))</td>
+                        <td class="num">@Format.Count(f.Stats.RecordsIn)</td>
+                        <td class="num">@Format.Count(f.Stats.RecordsOut)</td>
+                        <td class="num">@Format.Count(f.Stats.RecordsFiltered)</td>
+                        <td class="num">@f.Stats.Errors</td>
+                        <td><span class="pill @(f.Stats.Running ? "run" : "pause")">@(f.Stats.Running ? "running" : "paused")</span></td>
+                        <td style="white-space:nowrap">
+                            @if (f.Stats.Running)
+                            {
+                                <button class="btn ghost small" @onclick="() => Act(() => State.Admin.PauseFlowAsync(f.Name))">@L.T("flows.pause")</button>
+                            }
+                            else
+                            {
+                                <button class="btn ghost small" @onclick="() => Act(() => State.Admin.ResumeFlowAsync(f.Name))">@L.T("flows.resume")</button>
+                            }
+                            <button class="btn danger small" @onclick="() => Act(() => State.Admin.DeleteFlowAsync(f.Name))">@L.T("flows.delete")</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<h2 class="section">@L.T("flows.deploy") <small>Kubernetes-style YAML, same as <code>bpctl flow deploy</code></small></h2>
+<div class="panel">
+    <label class="field">Flow YAML
+        <textarea @bind="_yaml" rows="16" spellcheck="false"></textarea>
+    </label>
+    <div class="row" style="margin-top:10px">
+        <button class="btn" @onclick="DeployAsync">@L.T("flows.deploy")</button>
+        <span class="muted">Processors: <code>filter</code>, <code>mapping</code>, <code>route</code> (bpql).</span>
+    </div>
+    @if (_message is not null)
+    {
+        <div class="notice @(_ok ? "ok" : "error")">@_message</div>
+    }
+</div>
+
+@code {
+    [CascadingParameter] public L10n L { get; set; } = new();
+    private string? _message;
+    private bool _ok;
+    private string _yaml = """
+        apiVersion: bigpipe.io/v1
+        kind: Flow
+        metadata:
+          name: big-payments
+        spec:
+          input:
+            bigpipe:
+              topic: payments
+          pipeline:
+            processors:
+              - filter: 'this.amount > 1000000 && header("region") == "ID"'
+              - mapping: |
+                  root = this
+                  root.card_number = deleted()
+                  root.flagged_at = now()
+          output:
+            bigpipe:
+              topic: payments.high-value
+          start_from: earliest
+        """;
+
+    private static string Describe(FlowProcessor p) =>
+        p.Filter is { } f ? $"filter({f})" : p.Mapping is { } m ? $"mapping({m.Split('\n').Length} lines)" : $"route({p.Route})";
+
+    private async Task Act(Func<Task> action)
+    {
+        try
+        {
+            await action();
+            await State.RefreshNowAsync();
+        }
+        catch (Exception e)
+        {
+            _ok = false;
+            _message = e.Message;
+        }
+    }
+
+    private async Task DeployAsync()
+    {
+        try
+        {
+            var spec = await State.Admin.DeployFlowYamlAsync(_yaml);
+            _ok = true;
+            _message = $"Deployed {spec.Name}: {spec.Input} → {spec.Output}.";
+            await State.RefreshNowAsync();
+        }
+        catch (Exception e)
+        {
+            _ok = false;
+            _message = e.Message;
+        }
+    }
+
+    protected override void OnInitialized() => State.Changed += OnChanged;
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => State.Changed -= OnChanged;
+}

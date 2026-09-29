@@ -1,0 +1,134 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="BigPipe.Gallery.App"
+             RequestedThemeVariant="Light">
+
+    <!-- Same visual language as BigPipe Console: plant schematic, copper / steel / water materials. -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="Paper" Color="#EEF1EC" />
+                    <SolidColorBrush x:Key="Paper2" Color="#E3E8E2" />
+                    <SolidColorBrush x:Key="Surface" Color="#F7F9F6" />
+                    <SolidColorBrush x:Key="Ink" Color="#10211F" />
+                    <SolidColorBrush x:Key="Ink2" Color="#3C4C49" />
+                    <SolidColorBrush x:Key="Ink3" Color="#6D7C78" />
+                    <SolidColorBrush x:Key="Rule" Color="#C5CFC9" />
+                    <SolidColorBrush x:Key="Copper" Color="#C0662F" />
+                    <SolidColorBrush x:Key="Steel" Color="#6F7F86" />
+                    <SolidColorBrush x:Key="Water" Color="#2A8CA6" />
+                    <SolidColorBrush x:Key="Ok" Color="#3F8A5A" />
+                    <SolidColorBrush x:Key="Alert" Color="#C8412E" />
+                    <SolidColorBrush x:Key="Console" Color="#10211F" />
+                    <SolidColorBrush x:Key="ConsoleText" Color="#D8E3DF" />
+                    <SolidColorBrush x:Key="CodeComment" Color="#7F918B" />
+                    <SolidColorBrush x:Key="CodeString" Color="#1F7F99" />
+                    <SolidColorBrush x:Key="CodeKeyword" Color="#B0561F" />
+                    <SolidColorBrush x:Key="CodeNumber" Color="#8A5CB8" />
+                    <SolidColorBrush x:Key="CodeType" Color="#2F7A4A" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="Paper" Color="#0E1716" />
+                    <SolidColorBrush x:Key="Paper2" Color="#13201E" />
+                    <SolidColorBrush x:Key="Surface" Color="#172523" />
+                    <SolidColorBrush x:Key="Ink" Color="#E3EBE7" />
+                    <SolidColorBrush x:Key="Ink2" Color="#B4C2BD" />
+                    <SolidColorBrush x:Key="Ink3" Color="#7F918B" />
+                    <SolidColorBrush x:Key="Rule" Color="#2A3A37" />
+                    <SolidColorBrush x:Key="Copper" Color="#DE8150" />
+                    <SolidColorBrush x:Key="Steel" Color="#93A3AA" />
+                    <SolidColorBrush x:Key="Water" Color="#4CB3CD" />
+                    <SolidColorBrush x:Key="Ok" Color="#5BB07A" />
+                    <SolidColorBrush x:Key="Alert" Color="#E0634F" />
+                    <SolidColorBrush x:Key="Console" Color="#081010" />
+                    <SolidColorBrush x:Key="ConsoleText" Color="#D8E3DF" />
+                    <SolidColorBrush x:Key="CodeComment" Color="#7F918B" />
+                    <SolidColorBrush x:Key="CodeString" Color="#4CB3CD" />
+                    <SolidColorBrush x:Key="CodeKeyword" Color="#DE8150" />
+                    <SolidColorBrush x:Key="CodeNumber" Color="#B58FDB" />
+                    <SolidColorBrush x:Key="CodeType" Color="#7CC795" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+            <FontFamily x:Key="DisplayFont">avares://BigPipe.Gallery/Assets#Big Shoulders Display</FontFamily>
+            <FontFamily x:Key="BodyFont">avares://BigPipe.Gallery/Assets#Instrument Sans</FontFamily>
+            <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, Menlo, DejaVu Sans Mono, monospace</FontFamily>
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+        <Style Selector="Window">
+            <Setter Property="FontFamily" Value="{DynamicResource BodyFont}" />
+            <Setter Property="Background" Value="{DynamicResource Paper}" />
+            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+        </Style>
+        <Style Selector="TextBlock.eyebrow">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="LetterSpacing" Value="1.2" />
+            <Setter Property="Foreground" Value="{DynamicResource Ink3}" />
+        </Style>
+        <Style Selector="TextBlock.display">
+            <Setter Property="FontFamily" Value="{DynamicResource DisplayFont}" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+        </Style>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource Surface}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Ink}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="3" />
+        </Style>
+        <Style Selector="Button.nav">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Foreground" Value="{DynamicResource Ink2}" />
+        </Style>
+        <Style Selector="Button.nav:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Surface}" />
+        </Style>
+        <Style Selector="Button.nav.on">
+            <Setter Property="Background" Value="{DynamicResource Surface}" />
+            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Copper}" />
+            <Setter Property="BorderThickness" Value="3,0,0,0" />
+        </Style>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource Ink}" />
+            <Setter Property="Foreground" Value="{DynamicResource Paper}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="CornerRadius" Value="3" />
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Copper}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Ink}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="CornerRadius" Value="3" />
+        </Style>
+        <Style Selector="ListBox.tabs">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.tabs ListBoxItem">
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource Ink3}" />
+        </Style>
+        <Style Selector="ListBox.tabs ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Copper}" />
+            <Setter Property="BorderThickness" Value="0,0,0,3" />
+        </Style>
+        <Style Selector="ListBox.tabs ListBoxItem:selected">
+            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+        </Style>
+    </Application.Styles>
+</Application>

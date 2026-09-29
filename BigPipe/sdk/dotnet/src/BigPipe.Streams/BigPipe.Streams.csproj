@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>BigPipe.Streams</PackageId>
+    <Description>BigPipe.Streams: stream processing for .NET on BigPipe (and Kafka) — filter, map, group, tumbling/hopping/sliding/session windows, aggregations, stream-table joins, state stores with changelog recovery and interactive queries. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BigPipe.Client\BigPipe.Client.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BigPipe.Streams.Tests" />
+    <InternalsVisibleTo Include="BigPipe.Client.Tests" />
+  </ItemGroup>
+
+</Project>

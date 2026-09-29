@@ -1,0 +1,13 @@
+# Control plane images: docker build -f deploy/docker/Dockerfile.dotnet --build-arg APP=BigPipe.Console .
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG APP=BigPipe.Console
+WORKDIR /src
+COPY . .
+RUN dotnet publish control-plane/src/${APP}/${APP}.csproj -c Release -o /out
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+ARG APP=BigPipe.Console
+ENV APP_DLL=${APP}.dll
+WORKDIR /app
+COPY --from=build /out .
+ENTRYPOINT ["sh", "-c", "dotnet $APP_DLL"]

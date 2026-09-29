@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>BigPipe.Analytics.Torch</PackageId>
+    <Description>TorchSharp deep learning for BigPipe realtime analytics: online autoencoder anomaly detection for multivariate streams, sliding-window detectors and TorchScript model scoring. Uses the TorchSharp API; add TorchSharp-cpu or TorchSharp-cuda-* for the native runtime. Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BigPipe.Analytics\BigPipe.Analytics.csproj" />
+    <PackageReference Include="TorchSharp" Version="0.107.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,49 @@
+@* Records as a readable log: position, key/time, value (pretty JSON when possible) and headers. *@
+@if (Records.Count == 0)
+{
+    <div class="empty">@L.T("common.none")</div>
+}
+else
+{
+    <div class="records">
+        @foreach (var r in Records)
+        {
+            <div class="rec">
+                <div class="meta">p@(r.Partition) · @@@r.Offset<br />@r.Time.ToLocalTime().ToString("HH:mm:ss.fff")</div>
+                <div class="meta">@(r.Key ?? "—")</div>
+                <div>
+                    <div class="val">@Pretty(r)</div>
+                    @if (r.Headers.Count > 0)
+                    {
+                        <div class="hdr">@string.Join("  ", r.Headers.Select(h => $"{h.Key}={h.Value}"))</div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<HttpRecord> Records { get; set; } = [];
+    [CascadingParameter] public L10n L { get; set; } = new();
+
+    private static string Pretty(HttpRecord r)
+    {
+        if (r.Value is null) return "null";
+        if (r.ValueEncoding == "base64") return "base64: " + r.Value;
+        var v = r.Value.TrimStart();
+        if (v.StartsWith('{') || v.StartsWith('['))
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(r.Value);
+                // Compact, one record per line: easier to scan than indented JSON.
+                return System.Text.Json.JsonSerializer.Serialize(doc.RootElement, new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+            }
+            catch (System.Text.Json.JsonException)
+            {
+            }
+        }
+        return r.Value;
+    }
+}

@@ -1,0 +1,19 @@
+[package]
+name = "bpctl"
+description = "BigPipe command line: topics, produce/consume, groups, flows, storage migration and benchmarks"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+bp-protocol.workspace = true
+tokio.workspace = true
+bytes.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+reqwest.workspace = true
+futures.workspace = true
+comfy-table.workspace = true

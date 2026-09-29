@@ -1,0 +1,14 @@
+[Unit]
+Description=BigPipe streaming node
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=bigpipe
+ExecStart=/usr/local/bin/bigpiped --mode node --config /etc/bigpipe/bigpipe.yaml
+Restart=on-failure
+LimitNOFILE=1048576
+Environment=BIGPIPE_LOG=info
+
+[Install]
+WantedBy=multi-user.target

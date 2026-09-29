@@ -1,0 +1,125 @@
+@page "/topics"
+@implements IDisposable
+@inject ClusterState State
+@inject NavigationManager Nav
+
+<PageTitle>BigPipe · @L.T("nav.topics")</PageTitle>
+
+<h1 class="title">@L.T("topics.title")</h1>
+<p class="lede">@L.T("topics.lede")</p>
+
+<div class="panel">
+    <h3>@L.T("topics.create")</h3>
+    <div class="row">
+        <label class="field grow">@L.T("topics.name")
+            <input @bind="_name" @bind:event="oninput" placeholder="orders" aria-label="@L.T("topics.name")" />
+        </label>
+        <label class="field">@L.T("topics.partitions")
+            <input type="number" min="1" max="1000" @bind="_partitions" style="width:110px" />
+        </label>
+        <label class="field">@L.T("topics.retention")
+            <input type="number" @bind="_retentionHours" style="width:160px" />
+        </label>
+        <div class="field">@L.T("topics.mode")
+            <div class="segmented" role="radiogroup">
+                @foreach (var m in new[] { StorageMode.Local, StorageMode.Tiered, StorageMode.Diskless })
+                {
+                    <button type="button" role="radio" aria-checked="@(_mode == m)" class="@(_mode == m ? "on" : "") @Format.ModeClass(m)" @onclick="() => _mode = m">
+                        <i></i>@m.ToString().ToLowerInvariant()
+                    </button>
+                }
+            </div>
+        </div>
+        <button class="btn" @onclick="CreateAsync" disabled="@(string.IsNullOrWhiteSpace(_name) || _busy)">@L.T("topics.create")</button>
+    </div>
+    <p class="muted" style="margin:10px 0 0">@L.T("mode." + _mode.ToString().ToLowerInvariant())</p>
+    @if (_message is not null)
+    {
+        <div class="notice @(_ok ? "ok" : "error")">@_message</div>
+    }
+</div>
+
+<h2 class="section">@State.Topics.Count(t => _showInternal || !t.Internal) topics
+    <small><label><input type="checkbox" @bind="_showInternal" /> @L.T("topics.showInternal")</label></small>
+</h2>
+@{
+    var list = State.Topics.Where(t => _showInternal || !t.Internal).ToList();
+}
+@if (list.Count == 0)
+{
+    <div class="empty">@L.T("overview.noTopics")</div>
+}
+else
+{
+    <div class="table-wrap">
+        <table class="grid">
+            <thead>
+                <tr>
+                    <th>@L.T("topics.name")</th>
+                    <th>@L.T("topics.mode")</th>
+                    <th class="num">@L.T("topics.partitions")</th>
+                    <th class="num">@L.T("topics.records")</th>
+                    <th class="num">@L.T("topics.rate")</th>
+                    <th class="num">@L.T("topics.stored")</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var t in list)
+                {
+                    var rate = State.TopicRates.TryGetValue(t.Name, out var r) ? r : 0;
+                    <tr>
+                        <td><a href="@($"topics/{Uri.EscapeDataString(t.Name)}")">@t.Name</a></td>
+                        <td><Material Mode="t.Mode" /></td>
+                        <td class="num">@t.Partitions</td>
+                        <td class="num">@Format.Count(t.Records)</td>
+                        <td class="num">@(rate >= 0.5 ? Format.Count(rate) + "/s" : "–")</td>
+                        <td class="num">@Format.Bytes(t.Bytes.Total)</td>
+                        <td style="width:160px"><StorageBar Bytes="t.Bytes" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [CascadingParameter] public L10n L { get; set; } = new();
+    private string _name = "";
+    private int _partitions = 3;
+    private int _retentionHours = 168;
+    private StorageMode _mode = StorageMode.Local;
+    private bool _showInternal;
+    private bool _busy;
+    private bool _ok;
+    private string? _message;
+
+    private async Task CreateAsync()
+    {
+        _busy = true;
+        try
+        {
+            var cfg = new Dictionary<string, string> { ["retention.ms"] = _retentionHours < 0 ? "-1" : (_retentionHours * 3_600_000L).ToString() };
+            var t = await State.Admin.CreateTopicAsync(_name.Trim(), _partitions, _mode, cfg);
+            _ok = true;
+            _message = $"Created {t.Name}: {t.Partitions} partitions on {t.Mode.ToString().ToLowerInvariant()} storage.";
+            _name = "";
+            await State.RefreshNowAsync();
+        }
+        catch (Exception e)
+        {
+            _ok = false;
+            _message = e.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    protected override void OnInitialized() => State.Changed += OnChanged;
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => State.Changed -= OnChanged;
+}

@@ -1,0 +1,16 @@
+@* Where a topic's bytes live: copper local, steel tiered, water diskless. *@
+@{
+    var total = Math.Max(1, Bytes.Total);
+}
+<div class="bar" title="local @Format.Bytes(Bytes.Local) · object @Format.Bytes(Bytes.Remote) · diskless @Format.Bytes(Bytes.Diskless)">
+    <span class="local" style="width:@Pct(Bytes.Local, total)"></span>
+    <span class="remote" style="width:@Pct(Bytes.Remote, total)"></span>
+    <span class="diskless" style="width:@Pct(Bytes.Diskless, total)"></span>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public TopicBytes Bytes { get; set; } = new(0, 0, 0);
+
+    private static string Pct(long v, long total) =>
+        (v * 100.0 / total).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%";
+}

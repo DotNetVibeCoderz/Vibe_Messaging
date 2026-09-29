@@ -1,0 +1,18 @@
+@* Lag against the largest lag on screen; a full green bar means caught up. *@
+<div class="lagbar @(Lag == 0 ? "zero" : "")" title="lag @Lag">
+    <span style="width:@Width"></span>
+</div>
+
+@code {
+    [Parameter] public long Lag { get; set; }
+    [Parameter] public long Max { get; set; }
+
+    private string Width
+    {
+        get
+        {
+            var pct = Lag == 0 ? 100 : Max <= 0 ? 3 : Math.Max(3, Math.Min(100, Lag * 100.0 / Max));
+            return pct.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "%";
+        }
+    }
+}
