@@ -98,6 +98,8 @@ await foreach (var (rec, score) in source.Anomalies(r => r.Num("temp_c"), detect
     Console.WriteLine($"{rec.Key} {rec.Num("temp_c")} °C  p={score.Score:0.000}");
 ```
 
+**Linux:** ML.NET's native MKL library (used by `SrCnnWindowDetector` and `SsaForecaster`) needs Intel OpenMP, `libiomp5.so`, which the NuGet package does not include. Install LLVM's compatible build with `sudo apt-get install libomp-dev`. If `ldconfig -p | grep libiomp5` still finds nothing, link it: `sudo ln -s $(readlink -f $(find /usr/lib -name libomp.so.5 | head -1)) /usr/local/lib/libiomp5.so && sudo ldconfig`. Windows and macOS need nothing extra.
+
 ![Anomaly detection in the Gallery](../images/gallery-anomaly.png)
 
 ## TorchSharp (`BigPipe.Analytics.Torch`)

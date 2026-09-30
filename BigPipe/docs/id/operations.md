@@ -105,6 +105,7 @@ Untuk mengulanginya, jalankan `bigpiped --mode dev` lalu perintah di atas. `bpct
 | Layanan kompatibel S3 membalas `NoSuchKey` / `NoSuchBucket` | Atur `AWS_ENDPOINT` ke root layanan (tanpa bucket di path) dan `AWS_VIRTUAL_HOSTED_STYLE_REQUEST=false` untuk layanan path-style seperti MinIO. |
 | Consumer HTTP mendapat `404 unknown member` | Member berhenti poll lebih lama dari `session_timeout_ms` (default 30 detik) sehingga dikeluarkan. Bergabung lagi; SDK melakukannya otomatis. |
 | `401` dari admin API | `admin_api_key` sedang aktif. Kirim `Authorization: Bearer <key>` (Console: `BigPipe:ApiKey`, bpctl: `--api-key` / `BIGPIPE_API_KEY`). |
+| `DllNotFoundException: MklImports` di Linux (ML.NET SR-CNN / SSA) | Intel OpenMP tidak ada: `sudo apt-get install libomp-dev`, lalu pastikan `libiomp5.so` ada di path loader (lihat [ML.NET](streams-and-analytics.md#mlnet-bigpipeanalyticsml)). |
 | Crash ONNX / MediaPipe di notebook Windows | Panggil `OnnxRuntimeNative.EnsureLoaded()` lebih dulu (tipe analitik melakukannya otomatis) agar ONNX Runtime dari NuGet yang dipakai, bukan yang ada di System32. |
 
 ---

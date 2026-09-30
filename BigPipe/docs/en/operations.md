@@ -105,6 +105,7 @@ To reproduce, start `bigpiped --mode dev` and run the commands. `bpctl bench --h
 | S3-compatible service returns `NoSuchKey` / `NoSuchBucket` | Set `AWS_ENDPOINT` to the service root (no bucket in the path) and `AWS_VIRTUAL_HOSTED_STYLE_REQUEST=false` for path-style services such as MinIO. |
 | HTTP consumer gets `404 unknown member` | The member stopped polling for longer than `session_timeout_ms` (default 30 s) and was removed. Join again; the SDKs do this automatically. |
 | `401` from the admin API | `admin_api_key` is set. Send `Authorization: Bearer <key>` (Console: `BigPipe:ApiKey`, bpctl: `--api-key` / `BIGPIPE_API_KEY`). |
+| `DllNotFoundException: MklImports` on Linux (ML.NET SR-CNN / SSA) | Intel OpenMP is missing: `sudo apt-get install libomp-dev`, and make sure `libiomp5.so` is on the loader path (see [ML.NET](streams-and-analytics.md#mlnet-bigpipeanalyticsml)). |
 | ONNX / MediaPipe crash on Windows in a notebook | Call `OnnxRuntimeNative.EnsureLoaded()` first (the analytics types do it automatically) so the NuGet ONNX Runtime is used instead of the one in System32. |
 
 ---
