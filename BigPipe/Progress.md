@@ -32,7 +32,12 @@ Development log for BigPipe. Newest entries on top. The roadmap is in [PLAN.md](
 | `tests/integration/test_features.py` on local / S3-compatible / Azure Blob | 22/22 each · masing-masing |
 | Python / TypeScript / Go / Java SDK tests | 4 / 4 / pass / 2 |
 | Gallery `--run-all` | 14/14 cases |
-| Notebooks (`tools/notebooks/run_notebooks.py`, local feed) | 7/7 (before the move · sebelum pemindahan) |
+| Notebooks (`tools/notebooks/run_notebooks.py`) against the packages from nuget.org · terhadap paket dari nuget.org | 7/7 |
+| GitHub Actions `bigpipe-ci.yml` (Ubuntu + Windows, compat and SDKs) | green · lulus |
+
+**Fixed after release · Diperbaiki setelah rilis**
+
+- CI on Ubuntu: ML.NET's MKL (SR-CNN, SSA) needs `libiomp5.so`. CI now installs LLVM's libomp and links it, and the Linux prerequisite is documented. · CI Ubuntu: MKL ML.NET butuh `libiomp5.so`; CI kini memasang libomp LLVM, dan prasyarat Linux sudah didokumentasikan.
 
 **Not verified · Belum diverifikasi**
 
