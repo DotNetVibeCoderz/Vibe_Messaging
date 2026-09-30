@@ -98,7 +98,7 @@ await foreach (var (rec, score) in source.Anomalies(r => r.Num("temp_c"), detect
     Console.WriteLine($"{rec.Key} {rec.Num("temp_c")} °C  p={score.Score:0.000}");
 ```
 
-**Linux:** library native MKL milik ML.NET (dipakai `SrCnnWindowDetector` dan `SsaForecaster`) membutuhkan Intel OpenMP, `libiomp5.so`, yang tidak disertakan paket NuGet. Pasang versi LLVM yang kompatibel dengan `sudo apt-get install libomp-dev`. Jika `ldconfig -p | grep libiomp5` masih kosong, buat link: `sudo ln -s $(readlink -f $(find /usr/lib -name libomp.so.5 | head -1)) /usr/local/lib/libiomp5.so && sudo ldconfig`. Windows dan macOS tidak butuh apa-apa lagi.
+**Linux:** library native MKL milik ML.NET (dipakai `SrCnnWindowDetector` dan `SsaForecaster`) membutuhkan Intel OpenMP, `libiomp5.so`, yang tidak disertakan paket NuGet. Pasang versi LLVM yang kompatibel dengan `sudo apt-get install libomp-dev`, lalu buat link dengan nama yang dicari MKL, di direktori yang selalu dicari loader: `sudo ln -sf "$(readlink -f $(find /usr/lib -name libomp.so.5 | head -1))" /usr/lib/$(uname -m)-linux-gnu/libiomp5.so`. Windows dan macOS tidak butuh apa-apa lagi.
 
 ![Deteksi anomali di Gallery](../images/gallery-anomaly.png)
 

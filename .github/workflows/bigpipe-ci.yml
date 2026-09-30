@@ -61,19 +61,18 @@ jobs:
         run: cargo build --release -p bigpiped -p bpctl
 
       # ML.NET's MKL build (SR-CNN, SSA) links against Intel OpenMP, libiomp5.so, which neither
-      # the NuGet package nor the runner ships. LLVM's libomp is ABI-compatible; expose it under
-      # that name if the distro package does not already.
+      # the NuGet package nor the runner ships. LLVM's libomp is ABI-compatible. libomp-dev puts
+      # libiomp5.so under /usr/lib/llvm-<n>/lib, off the loader path, so link it into the
+      # multiarch directory the loader always searches (the ld cache keys by SONAME, not by this
+      # name, so ldconfig alone does not help). The last line proves dlopen finds it.
       - name: OpenMP for ML.NET (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q libomp-dev
-          if ! ldconfig -p | grep -q 'libiomp5.so'; then
-            src=$(find /usr/lib -name 'libomp.so.5' -o -name 'libiomp5.so' | head -n 1)
-            sudo ln -sf "$(readlink -f "$src")" /usr/local/lib/libiomp5.so
-            sudo ldconfig
-          fi
-          ldconfig -p | grep libiomp5
+          src=$(find /usr/lib -name 'libomp.so.5' | head -n 1)
+          sudo ln -sf "$(readlink -f "$src")" "/usr/lib/$(uname -m)-linux-gnu/libiomp5.so"
+          python3 -c "import ctypes; ctypes.CDLL('libiomp5.so'); print('libiomp5.so loads')"
 
       - name: .NET tests (client, streams, analytics, registry)
         run: dotnet test sdk/dotnet/tests/BigPipe.Client.Tests/BigPipe.Client.Tests.csproj -c Release
