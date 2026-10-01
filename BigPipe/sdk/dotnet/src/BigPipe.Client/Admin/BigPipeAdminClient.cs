@@ -107,6 +107,13 @@ public sealed class BigPipeAdminClient : IDisposable
     public Task<MigrationResult> MigrateAsync(string name, StorageMode to, CancellationToken ct = default) =>
         SendAsync<MigrationResult>(HttpMethod.Post, $"v1/topics/{Uri.EscapeDataString(name)}/migrate", new { to = to.ToString().ToLowerInvariant() }, ct);
 
+    /// <summary>
+    /// Compacts a <c>cleanup.policy=compact</c> topic now, keeping the latest record per key.
+    /// BigPipe also compacts in the background once <c>min.cleanable.dirty.ratio</c> of the log is dirty.
+    /// </summary>
+    public Task<CompactionResult> CompactAsync(string name, CancellationToken ct = default) =>
+        SendAsync<CompactionResult>(HttpMethod.Post, $"v1/topics/{Uri.EscapeDataString(name)}/compact", new { }, ct);
+
     public Task<TopicInfo> AddPartitionsAsync(string name, int count, CancellationToken ct = default) =>
         SendAsync<TopicInfo>(HttpMethod.Post, $"v1/topics/{Uri.EscapeDataString(name)}/partitions", new { count }, ct);
 

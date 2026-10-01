@@ -56,6 +56,11 @@ public final class Admin {
         return http.call("POST", "/v1/topics/" + BigPipe.enc(name) + "/migrate", body);
     }
 
+    /** Compacts a {@code cleanup.policy=compact} topic now (keeps the latest record per key). */
+    public JsonNode compact(String name) {
+        return http.call("POST", "/v1/topics/" + BigPipe.enc(name) + "/compact", BigPipe.JSON.createObjectNode());
+    }
+
     public JsonNode group(String id) {
         return http.call("GET", "/v1/groups/" + BigPipe.enc(id), null);
     }

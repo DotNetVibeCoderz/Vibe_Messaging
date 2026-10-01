@@ -7,6 +7,10 @@
 //!
 //! Switching a topic's storage mode only changes where *new* extents go, so online migration
 //! never rewrites offsets.
+//!
+//! Local segment files carry a *generation*: `<base>.log` is generation 0 and log compaction
+//! writes `<base>-<generation>.log`. Old generations are deleted after [`DELETE_DELAY_MS`], so reads
+//! planned against them still complete.
 
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::fs::{self, File, OpenOptions};
@@ -22,30 +26,56 @@ use crate::config::{Durability, StorageMode, TopicConfig};
 use crate::read::{Chunk, ReadPlan};
 use crate::StorageError;
 
-const INDEX_INTERVAL_BYTES: u64 = 4096;
+pub(crate) const INDEX_INTERVAL_BYTES: u64 = 4096;
 const INDEX_ENTRY_LEN: usize = 24;
+/// How long a replaced segment file is kept so reads planned against it can finish.
+pub const DELETE_DELAY_MS: i64 = 60_000;
 
 #[derive(Debug, Clone, Copy)]
-struct IndexEntry {
-    offset: i64,
-    pos: u64,
+pub(crate) struct IndexEntry {
+    pub(crate) offset: i64,
+    pub(crate) pos: u64,
     /// Max timestamp of all batches up to and including this one (monotonic).
-    ts: i64,
+    pub(crate) ts: i64,
 }
 
 #[derive(Debug)]
-struct Segment {
-    base: i64,
-    /// Offset after the last batch (== base when empty).
-    next: i64,
-    size: u64,
-    max_ts: i64,
-    index: Vec<IndexEntry>,
-    bytes_since_index: u64,
+pub(crate) struct Segment {
+    pub(crate) base: i64,
+    /// Offset after the last batch (== base when empty). Compaction keeps it unchanged.
+    pub(crate) next: i64,
+    pub(crate) size: u64,
+    pub(crate) max_ts: i64,
+    pub(crate) index: Vec<IndexEntry>,
+    pub(crate) bytes_since_index: u64,
     local: bool,
     object_key: Option<String>,
     sealed: bool,
     created_ms: i64,
+    /// File generation: 0 for `<base>.log`, n for `<base>-<n>.log` written by compaction.
+    generation: u32,
+}
+
+impl Segment {
+    pub(crate) fn empty(base: i64) -> Self {
+        Segment {
+            base,
+            next: base,
+            size: 0,
+            max_ts: -1,
+            index: Vec::new(),
+            bytes_since_index: 0,
+            local: true,
+            object_key: None,
+            sealed: false,
+            created_ms: now_ms(),
+            generation: 0,
+        }
+    }
+
+    fn file(&self, ext: &str) -> String {
+        seg_file(self.base, self.generation, ext)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -106,6 +136,9 @@ pub struct PartitionInfo {
     pub cache_bytes: usize,
     pub records_in: u64,
     pub bytes_in: u64,
+    pub compactions: u64,
+    pub compaction_removed_records: u64,
+    pub last_compaction_ms: i64,
 }
 
 /// Work the shard must do asynchronously after [`Partition::maintenance`].
@@ -123,6 +156,29 @@ pub struct Maintenance {
 struct PartitionState {
     /// Lower bound for the next offset (survives retention deleting every extent).
     next_offset_floor: i64,
+    /// Sealed segments below this offset have been compacted at least once.
+    #[serde(default)]
+    cleaned_upto: i64,
+    /// Segments compaction emptied whose files still wait for [`DELETE_DELAY_MS`]; recovery
+    /// deletes them instead of loading them back.
+    #[serde(default)]
+    dropped: Vec<i64>,
+    /// Log start before compaction emptied the first segments. Compaction never moves the log
+    /// start (as in Kafka): consumers positioned in the removed range just read on from the next
+    /// surviving record instead of getting OFFSET_OUT_OF_RANGE. Retention clears it.
+    #[serde(default)]
+    log_start_floor: Option<i64>,
+}
+
+/// What a finished compaction changed, for logs and the admin API.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct CompactionStats {
+    pub segments: usize,
+    pub records_before: u64,
+    pub records_after: u64,
+    pub bytes_before: u64,
+    pub bytes_after: u64,
+    pub duration_ms: u64,
 }
 
 pub struct Partition {
@@ -144,6 +200,12 @@ pub struct Partition {
     last_flush_ms: i64,
     records_in: u64,
     bytes_in: u64,
+    /// Replaced files and the time after which they may be deleted.
+    pending_deletes: Vec<(PathBuf, i64)>,
+    compacting: bool,
+    compactions: u64,
+    compaction_removed: u64,
+    last_compaction_ms: i64,
 }
 
 /// One process-wide thread that fsyncs files handed over by shards (rolled segments and
@@ -173,6 +235,19 @@ fn seg_name(base: i64, ext: &str) -> String {
     format!("{base:020}.{ext}")
 }
 
+pub(crate) fn seg_file(base: i64, generation: u32, ext: &str) -> String {
+    if generation == 0 { seg_name(base, ext) } else { format!("{base:020}-{generation}.{ext}") }
+}
+
+/// Parses `<base>.log` / `<base>-<generation>.idx` into (base, generation).
+fn parse_seg_file(name: &str) -> Option<(i64, u32)> {
+    let stem = name.strip_suffix(".log").or_else(|| name.strip_suffix(".idx"))?;
+    match stem.split_once('-') {
+        None => Some((stem.parse().ok()?, 0)),
+        Some((b, g)) => Some((b.parse().ok()?, g.parse().ok()?)),
+    }
+}
+
 pub fn now_ms() -> i64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
 }
@@ -181,29 +256,59 @@ impl Partition {
     /// Opens (or creates) a partition directory and recovers its state.
     pub fn open(dir: PathBuf, topic: Arc<str>, id: i32, cfg: Arc<TopicConfig>) -> Result<Self, StorageError> {
         fs::create_dir_all(&dir)?;
-        let state: PartitionState = fs::read(dir.join("partition.json"))
+        let mut state: PartitionState = fs::read(dir.join("partition.json"))
             .ok()
             .and_then(|b| serde_json::from_slice(&b).ok())
             .unwrap_or_default();
+        let dropped = std::mem::take(&mut state.dropped);
 
-        let mut bases: Vec<i64> = Vec::new();
+        // Pick one generation per base: the highest one whose .log and .idx both exist (a
+        // compacted generation is only complete once its index is written). Unfinished
+        // compaction output (`*.cleaned`) and superseded generations are removed.
+        let mut generations: BTreeMap<i64, Vec<u32>> = BTreeMap::new();
         for entry in fs::read_dir(&dir)? {
             let name = entry?.file_name().to_string_lossy().into_owned();
-            if let Some(stem) = name.strip_suffix(".log").or_else(|| name.strip_suffix(".idx")) {
-                if let Ok(b) = stem.parse::<i64>() {
-                    if !bases.contains(&b) {
-                        bases.push(b);
-                    }
+            if name.ends_with(".cleaned") || name.ends_with(".cleaned.tmp") {
+                let _ = fs::remove_file(dir.join(&name));
+                continue;
+            }
+            if let Some((b, g)) = parse_seg_file(&name) {
+                if dropped.contains(&b) {
+                    let _ = fs::remove_file(dir.join(&name));
+                    continue;
+                }
+                let v = generations.entry(b).or_default();
+                if !v.contains(&g) {
+                    v.push(g);
                 }
             }
         }
-        bases.sort_unstable();
+        let mut chosen: BTreeMap<i64, u32> = BTreeMap::new();
+        for (base, mut gs) in generations {
+            gs.sort_unstable();
+            let pick = gs
+                .iter()
+                .rev()
+                .copied()
+                .find(|&g| g == 0 || (dir.join(seg_file(base, g, "log")).exists() && dir.join(seg_file(base, g, "idx")).exists()));
+            for &g in &gs {
+                if Some(g) != pick {
+                    let _ = fs::remove_file(dir.join(seg_file(base, g, "log")));
+                    let _ = fs::remove_file(dir.join(seg_file(base, g, "idx")));
+                }
+            }
+            if let Some(g) = pick {
+                chosen.insert(base, g);
+            }
+        }
+        let bases: Vec<i64> = chosen.keys().copied().collect();
 
         let mut segments = BTreeMap::new();
-        let last_local = bases.iter().rev().find(|b| dir.join(seg_name(**b, "log")).exists()).copied();
+        let last_local = bases.iter().rev().find(|b| dir.join(seg_file(**b, chosen[b], "log")).exists()).copied();
         for &base in &bases {
-            let log = dir.join(seg_name(base, "log"));
-            let idx = dir.join(seg_name(base, "idx"));
+            let generation = chosen[&base];
+            let log = dir.join(seg_file(base, generation, "log"));
+            let idx = dir.join(seg_file(base, generation, "idx"));
             let tier: Option<TierSidecar> =
                 fs::read(dir.join(seg_name(base, "tier"))).ok().and_then(|b| serde_json::from_slice(&b).ok());
             let local = log.exists();
@@ -214,18 +319,20 @@ impl Partition {
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| d.as_millis() as i64)
                 .unwrap_or_else(now_ms);
-            let seg = if !is_active && idx.exists() {
+            let seg = if (!is_active || generation > 0) && idx.exists() {
                 let mut s = read_index_file(&idx, base)?;
                 s.local = local;
                 s.object_key = tier.map(|t| t.object_key);
                 s.sealed = true;
                 s.created_ms = created_ms;
+                s.generation = generation;
                 s
             } else if local {
                 let mut s = scan_segment(&log, base)?;
                 s.object_key = tier.map(|t| t.object_key);
                 s.sealed = !is_active;
                 s.created_ms = created_ms;
+                s.generation = generation;
                 if s.sealed {
                     write_index_file(&idx, &s)?;
                 }
@@ -247,9 +354,7 @@ impl Partition {
         }
 
         let writer = match segments.values().next_back() {
-            Some(s) if s.local && !s.sealed => {
-                Some(OpenOptions::new().append(true).open(dir.join(seg_name(s.base, "log")))?)
-            }
+            Some(s) if s.local && !s.sealed => Some(OpenOptions::new().append(true).open(dir.join(s.file("log")))?),
             _ => None,
         };
 
@@ -272,6 +377,11 @@ impl Partition {
             last_flush_ms: now_ms(),
             records_in: 0,
             bytes_in: 0,
+            pending_deletes: Vec::new(),
+            compacting: false,
+            compactions: 0,
+            compaction_removed: 0,
+            last_compaction_ms: 0,
         })
     }
 
@@ -292,6 +402,12 @@ impl Partition {
     }
 
     pub fn log_start(&self) -> i64 {
+        let stored = self.stored_log_start();
+        self.state.log_start_floor.map_or(stored, |f| f.min(stored))
+    }
+
+    /// First offset that still has data in some extent.
+    fn stored_log_start(&self) -> i64 {
         let seg = self.segments.values().find(|s| s.next > s.base).map(|s| s.base);
         let ext = self.diskless.values().next().map(|e| e.base);
         match (seg, ext) {
@@ -327,6 +443,9 @@ impl Partition {
             cache_bytes: self.cache_bytes,
             records_in: self.records_in,
             bytes_in: self.bytes_in,
+            compactions: self.compactions,
+            compaction_removed_records: self.compaction_removed,
+            last_compaction_ms: self.last_compaction_ms,
         }
     }
 
@@ -446,37 +565,23 @@ impl Partition {
             if !s.sealed {
                 if s.next == s.base && s.base == next {
                     // Empty active segment already positioned correctly.
-                    self.writer = Some(OpenOptions::new().append(true).open(self.dir.join(seg_name(s.base, "log")))?);
+                    self.writer = Some(OpenOptions::new().append(true).open(self.dir.join(s.file("log")))?);
                     return Ok(());
                 }
                 s.sealed = true;
-                write_index_file(&self.dir.join(seg_name(s.base, "idx")), s)?;
+                write_index_file(&self.dir.join(s.file("idx")), s)?;
                 if s.next == s.base {
                     // Never-written segment: drop it.
                     let base = s.base;
-                    let _ = fs::remove_file(self.dir.join(seg_name(base, "log")));
-                    let _ = fs::remove_file(self.dir.join(seg_name(base, "idx")));
+                    let _ = fs::remove_file(self.dir.join(s.file("log")));
+                    let _ = fs::remove_file(self.dir.join(s.file("idx")));
                     self.segments.remove(&base);
                 }
             }
         }
         let path = self.dir.join(seg_name(next, "log"));
         let file = OpenOptions::new().create(true).append(true).open(&path)?;
-        self.segments.insert(
-            next,
-            Segment {
-                base: next,
-                next,
-                size: 0,
-                max_ts: -1,
-                index: Vec::new(),
-                bytes_since_index: 0,
-                local: true,
-                object_key: None,
-                sealed: false,
-                created_ms: now_ms(),
-            },
-        );
+        self.segments.insert(next, Segment::empty(next));
         self.writer = Some(file);
         Ok(())
     }
@@ -532,7 +637,7 @@ impl Partition {
         if let Some(s) = self.segments.values_mut().next_back() {
             if !s.sealed {
                 s.sealed = true;
-                write_index_file(&self.dir.join(seg_name(s.base, "idx")), s)?;
+                write_index_file(&self.dir.join(s.file("idx")), s)?;
             }
         }
         Ok(())
@@ -652,7 +757,7 @@ impl Partition {
                 let want = (max_bytes - planned.min(max_bytes)).max(1) as u64 + INDEX_INTERVAL_BYTES;
                 let len = (s.size - start).min(want);
                 if s.local {
-                    plan.chunks.push(Chunk::File { path: self.dir.join(seg_name(s.base, "log")), pos: start, len });
+                    plan.chunks.push(Chunk::File { path: self.dir.join(s.file("log")), pos: start, len });
                 } else if let Some(key) = &s.object_key {
                     plan.chunks.push(Chunk::Object { key: key.clone(), pos: start, len, patch_base: None });
                 } else {
@@ -695,7 +800,7 @@ impl Partition {
             // Narrow down with the sparse index, then scan batch headers when the file is local.
             let from = s.index.iter().rev().find(|e| e.ts < ts).map(|e| e.pos).unwrap_or(0);
             let found = if s.local {
-                scan_for_timestamp(&self.dir.join(seg_name(s.base, "log")), from, ts)?
+                scan_for_timestamp(&self.dir.join(s.file("log")), from, ts)?
             } else {
                 s.index.iter().find(|e| e.ts >= ts).map(|e| (e.offset, e.ts))
             };
@@ -721,6 +826,19 @@ impl Partition {
 
     pub fn maintenance(&mut self, now: i64) -> Result<Maintenance, StorageError> {
         let mut out = Maintenance::default();
+        if !self.pending_deletes.is_empty() {
+            self.pending_deletes.retain(|(path, due)| {
+                if *due > now {
+                    return true;
+                }
+                // Still open elsewhere on some platforms: try again next tick.
+                fs::remove_file(path).is_err() && path.exists()
+            });
+            if self.pending_deletes.is_empty() && !self.state.dropped.is_empty() {
+                self.state.dropped.clear();
+                let _ = fs::write(self.dir.join("partition.json"), serde_json::to_vec(&self.state).unwrap_or_default());
+            }
+        }
         if self.dirty && self.cfg.flush_ms >= 0 && now - self.last_flush_ms >= self.cfg.flush_ms {
             self.flush_background();
         }
@@ -734,8 +852,9 @@ impl Partition {
         }
 
         let cfg = self.cfg.clone();
+        // Compact-only topics keep data until it is superseded, however old it is.
         let expired = |max_ts: i64, created: i64| {
-            cfg.retention_ms >= 0 && now - if max_ts > 0 { max_ts } else { created } > cfg.retention_ms
+            cfg.delete() && cfg.retention_ms >= 0 && now - if max_ts > 0 { max_ts } else { created } > cfg.retention_ms
         };
 
         // Time-based retention on sealed segments.
@@ -746,7 +865,7 @@ impl Partition {
             self.drop_segment(base, &mut out);
         }
         // Size-based retention (local + remote bytes of sealed segments).
-        if cfg.retention_bytes >= 0 {
+        if cfg.delete() && cfg.retention_bytes >= 0 {
             let mut total: u64 = self.segments.values().map(|s| s.size).sum();
             while total > cfg.retention_bytes as u64 {
                 let Some(base) = self.segments.values().find(|s| s.sealed).map(|s| s.base) else { break };
@@ -771,6 +890,8 @@ impl Partition {
         }
         if removed_any {
             self.state.next_offset_floor = self.next_offset;
+            // Retention moves the log start; a compaction floor below it no longer applies.
+            self.state.log_start_floor = None;
             fs::write(self.dir.join("partition.json"), serde_json::to_vec(&self.state)?)?;
             // Cached batches may now precede log start; that is fine (plan checks log_start first).
         }
@@ -784,11 +905,11 @@ impl Partition {
             match &s.object_key {
                 None if tiered => out.uploads.push((
                     s.base,
-                    self.dir.join(seg_name(s.base, "log")),
+                    self.dir.join(s.file("log")),
                     format!("tiered/{}/{}/{}", self.topic, self.id, seg_name(s.base, "log")),
                 )),
                 Some(_) if now - s.max_ts.max(s.created_ms) > cfg.local_retention_ms => {
-                    fs::remove_file(self.dir.join(seg_name(s.base, "log")))?;
+                    fs::remove_file(self.dir.join(s.file("log")))?;
                     s.local = false;
                 }
                 _ => {}
@@ -799,9 +920,10 @@ impl Partition {
 
     fn drop_segment(&mut self, base: i64, out: &mut Maintenance) {
         if let Some(s) = self.segments.remove(&base) {
-            for ext in ["log", "idx", "tier"] {
-                let _ = fs::remove_file(self.dir.join(seg_name(base, ext)));
+            for ext in ["log", "idx"] {
+                let _ = fs::remove_file(self.dir.join(s.file(ext)));
             }
+            let _ = fs::remove_file(self.dir.join(seg_name(base, "tier")));
             if let Some(k) = s.object_key {
                 out.delete_objects.push(k);
             }
@@ -816,6 +938,111 @@ impl Partition {
             s.object_key = Some(key);
         }
         Ok(())
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Log compaction (the heavy lifting is in `crate::compact`, off the shard)
+    // -----------------------------------------------------------------------------------------
+
+    pub fn is_compacting(&self) -> bool {
+        self.compacting
+    }
+
+    /// Returns a compaction job when the topic compacts and enough of the log is dirty
+    /// (or always, when `force`). Only one job runs per partition at a time.
+    pub fn compaction_job(&mut self, now: i64, force: bool) -> Option<crate::compact::CompactionJob> {
+        if !self.cfg.compact() || self.cfg.mode != StorageMode::Local || self.compacting {
+            return None;
+        }
+        // Sealed local segments, oldest first, up to the first one younger than the lag.
+        let lag = self.cfg.min_compaction_lag_ms;
+        let candidates: Vec<&Segment> = self
+            .segments
+            .values()
+            .take_while(|s| s.sealed && s.local && (lag == 0 || s.max_ts <= now - lag))
+            .filter(|s| s.next > s.base)
+            .collect();
+        if candidates.is_empty() {
+            return None;
+        }
+        let total: u64 = candidates.iter().map(|s| s.size).sum();
+        let dirty: u64 = candidates.iter().filter(|s| s.base >= self.state.cleaned_upto).map(|s| s.size).sum();
+        if !force && (dirty == 0 || (dirty as f64) < self.cfg.min_cleanable_dirty_ratio * total as f64) {
+            return None;
+        }
+        let segments = candidates
+            .iter()
+            .map(|s| crate::compact::SegmentSnapshot { base: s.base, generation: s.generation, size: s.size, next: s.next })
+            .collect();
+        self.compacting = true;
+        Some(crate::compact::CompactionJob {
+            dir: self.dir.clone(),
+            segments,
+            tombstone_horizon_ms: now - self.cfg.delete_retention_ms,
+        })
+    }
+
+    /// Installs a finished compaction. Segments that changed since the job started (retention,
+    /// tiering) keep their current files and the job's output for them is discarded.
+    pub fn apply_compaction(
+        &mut self,
+        result: Result<crate::compact::CompactionResult, StorageError>,
+    ) -> Result<CompactionStats, StorageError> {
+        self.compacting = false;
+        let result = result?;
+        let now = now_ms();
+        let start_before = self.log_start();
+        let mut removed_any = false;
+        for c in &result.segments {
+            let snap = &c.snapshot;
+            let unchanged = self
+                .segments
+                .get(&snap.base)
+                .is_some_and(|s| s.sealed && s.local && s.object_key.is_none() && s.generation == snap.generation && s.size == snap.size);
+            if !unchanged {
+                crate::compact::discard(&self.dir, c);
+                continue;
+            }
+            let old = self.segments.remove(&snap.base).expect("checked above");
+            for ext in ["log", "idx"] {
+                self.pending_deletes.push((self.dir.join(old.file(ext)), now + DELETE_DELAY_MS));
+            }
+            match c.new_generation {
+                None => {
+                    removed_any = true;
+                    self.state.dropped.push(snap.base);
+                }
+                Some(generation) => {
+                    for ext in ["log", "idx"] {
+                        fs::rename(
+                            crate::compact::cleaned_path(&self.dir, snap.base, generation, ext),
+                            self.dir.join(seg_file(snap.base, generation, ext)),
+                        )?;
+                    }
+                    let mut s = read_index_file(&self.dir.join(seg_file(snap.base, generation, "idx")), snap.base)?;
+                    s.generation = generation;
+                    s.created_ms = old.created_ms;
+                    self.segments.insert(snap.base, s);
+                }
+            }
+        }
+        if let Some(last) = result.segments.last() {
+            self.state.cleaned_upto = self.state.cleaned_upto.max(last.snapshot.next);
+        }
+        if removed_any {
+            self.state.next_offset_floor = self.next_offset;
+            if self.stored_log_start() > start_before {
+                self.state.log_start_floor = Some(start_before);
+            }
+        }
+        fs::write(self.dir.join("partition.json"), serde_json::to_vec(&self.state)?)?;
+        // The cache may hold pre-compaction batches of the last sealed segment.
+        self.cache.clear();
+        self.cache_bytes = 0;
+        self.compactions += 1;
+        self.compaction_removed += result.stats.records_before.saturating_sub(result.stats.records_after);
+        self.last_compaction_ms = now;
+        Ok(result.stats.clone())
     }
 
     fn rewrite_diskless_log(&mut self) -> Result<(), StorageError> {
@@ -861,18 +1088,7 @@ fn scan_segment(path: &Path, base: i64) -> Result<Segment, StorageError> {
     let mut f = OpenOptions::new().read(true).write(true).open(path)?;
     let file_len = f.metadata()?.len();
     let mut r = BufReader::with_capacity(1 << 20, &mut f);
-    let mut seg = Segment {
-        base,
-        next: base,
-        size: 0,
-        max_ts: -1,
-        index: Vec::new(),
-        bytes_since_index: 0,
-        local: true,
-        object_key: None,
-        sealed: false,
-        created_ms: now_ms(),
-    };
+    let mut seg = Segment::empty(base);
     let mut pos: u64 = 0;
     let mut buf = Vec::new();
     loop {
@@ -910,7 +1126,7 @@ fn scan_segment(path: &Path, base: i64) -> Result<Segment, StorageError> {
     Ok(seg)
 }
 
-fn write_index_file(path: &Path, s: &Segment) -> Result<(), StorageError> {
+pub(crate) fn write_index_file(path: &Path, s: &Segment) -> Result<(), StorageError> {
     let mut buf = Vec::with_capacity(24 + s.index.len() * INDEX_ENTRY_LEN);
     buf.extend_from_slice(&s.next.to_be_bytes());
     buf.extend_from_slice(&s.size.to_be_bytes());
@@ -920,13 +1136,15 @@ fn write_index_file(path: &Path, s: &Segment) -> Result<(), StorageError> {
         buf.extend_from_slice(&e.pos.to_be_bytes());
         buf.extend_from_slice(&e.ts.to_be_bytes());
     }
-    let tmp = path.with_extension("idx.tmp");
+    let mut tmp = path.as_os_str().to_owned();
+    tmp.push(".tmp");
+    let tmp = PathBuf::from(tmp);
     fs::write(&tmp, &buf)?;
     fs::rename(&tmp, path)?;
     Ok(())
 }
 
-fn read_index_file(path: &Path, base: i64) -> Result<Segment, StorageError> {
+pub(crate) fn read_index_file(path: &Path, base: i64) -> Result<Segment, StorageError> {
     let b = fs::read(path)?;
     if b.len() < 24 || (b.len() - 24) % INDEX_ENTRY_LEN != 0 {
         return Err(StorageError::Corrupt(format!("bad index file {}", path.display())));
@@ -949,6 +1167,7 @@ fn read_index_file(path: &Path, base: i64) -> Result<Segment, StorageError> {
         object_key: None,
         sealed: true,
         created_ms: now_ms(),
+        generation: 0,
     })
 }
 
@@ -1119,6 +1338,194 @@ mod tests {
         assert!(matches!(&plan.chunks[1], Chunk::Object { patch_base: Some(2), .. }));
         let plan = p.read_plan(3, 1 << 20).unwrap();
         assert!(matches!(&plan.chunks[0], Chunk::Object { .. }));
+    }
+
+    fn keyed(items: &[(&str, Option<&str>)], ts: i64) -> (BytesMut, BatchSetInfo) {
+        let mut b = BatchBuilder::new(Compression::Lz4);
+        for (k, v) in items {
+            b.push(
+                &NewRecord {
+                    key: Some(Bytes::copy_from_slice(k.as_bytes())),
+                    value: v.map(|v| Bytes::copy_from_slice(v.as_bytes())),
+                    headers: vec![],
+                    timestamp: Some(ts),
+                },
+                0,
+            );
+        }
+        let raw = b.build().unwrap();
+        let info = records::validate_batches(&raw).unwrap();
+        (raw, info)
+    }
+
+    /// Every record in the log as (offset, key, value), read straight from the segment files.
+    fn dump(p: &Partition) -> Vec<(i64, String, Option<String>)> {
+        let mut out = Vec::new();
+        let plan = p.read_plan(p.log_start(), 64 << 20).unwrap();
+        for c in plan.chunks {
+            let bytes = match c {
+                Chunk::File { path, pos, len } => {
+                    let all = fs::read(path).unwrap();
+                    all[pos as usize..(pos + len).min(all.len() as u64) as usize].to_vec()
+                }
+                Chunk::Mem(b) => b.to_vec(),
+                other => panic!("unexpected chunk {other:?}"),
+            };
+            for r in records::decode_records(&bytes, 0).unwrap() {
+                let s = |b: &Option<Bytes>| b.as_ref().map(|b| String::from_utf8_lossy(b).into_owned());
+                out.push((r.offset, s(&r.key).unwrap(), s(&r.value)));
+            }
+        }
+        out.dedup_by_key(|r| r.0);
+        out
+    }
+
+    fn compact_now(p: &mut Partition) -> CompactionStats {
+        let job = p.compaction_job(now_ms(), true).expect("a compaction job");
+        let result = crate::compact::run(&job);
+        p.apply_compaction(result).unwrap()
+    }
+
+    fn compacted_topic(extra: impl FnOnce(&mut TopicConfig)) -> TopicConfig {
+        let mut cfg = TopicConfig { segment_bytes: 1024, cache_bytes: 0, ..Default::default() };
+        cfg.cleanup_policy = "compact".into();
+        extra(&mut cfg);
+        cfg
+    }
+
+    #[test]
+    fn compaction_keeps_latest_value_per_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = compacted_topic(|_| {});
+        let mut p = open(dir.path(), cfg.clone());
+        let now = now_ms();
+        // 30 rounds of updates to 3 keys: offsets 0..90, spread over many 1 KiB segments.
+        for round in 0..30 {
+            let v = format!("v{round}-{}", "x".repeat(40));
+            let (raw, info) = keyed(&[("a", Some(&v)), ("b", Some(&v)), ("c", Some(&v))], now);
+            p.append_local(raw, &info).unwrap();
+        }
+        p.roll().unwrap(); // seal everything so all of it is compactable
+        let before = dump(&p);
+        assert_eq!(before.len(), 90);
+
+        let stats = compact_now(&mut p);
+        assert_eq!(stats.records_before, 90);
+        assert_eq!(stats.records_after, 3);
+        assert!(stats.bytes_after < stats.bytes_before);
+        let after = dump(&p);
+        let latest: Vec<(i64, &str)> = after.iter().map(|(o, k, _)| (*o, k.as_str())).collect();
+        // Offsets are the originals of the last round.
+        assert_eq!(latest, vec![(87, "a"), (88, "b"), (89, "c")]);
+        assert!(after.iter().all(|(_, _, v)| v.as_deref().unwrap().starts_with("v29-")));
+        assert_eq!(p.high_watermark(), 90);
+        assert_eq!(p.info().compactions, 1);
+
+        // New data continues at the same offset; reopening picks the compacted generation.
+        let (raw, info) = keyed(&[("a", Some("new"))], now);
+        assert_eq!(p.append_local(raw, &info).unwrap().base_offset, 90);
+        p.flush().unwrap();
+        drop(p);
+        let p = open(dir.path(), cfg);
+        assert_eq!(p.high_watermark(), 91);
+        let again = dump(&p);
+        assert_eq!(again.len(), 4);
+        assert_eq!(again.last().unwrap(), &(90, "a".to_string(), Some("new".to_string())));
+        // Superseded generations were removed during recovery.
+        let leftovers = fs::read_dir(dir.path().join("t-0"))
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n.ends_with(".cleaned"))
+            .count();
+        assert_eq!(leftovers, 0);
+    }
+
+    #[test]
+    fn tombstones_live_for_delete_retention() {
+        let dir = tempfile::tempdir().unwrap();
+        let now = now_ms();
+        // Recent tombstone: kept so consumers can observe the delete.
+        let mut p = open(dir.path(), compacted_topic(|c| c.delete_retention_ms = 3_600_000));
+        let (raw, info) = keyed(&[("a", Some("1")), ("b", Some("1")), ("a", None)], now);
+        p.append_local(raw, &info).unwrap();
+        p.roll().unwrap();
+        compact_now(&mut p);
+        assert_eq!(dump(&p), vec![(1, "b".into(), Some("1".into())), (2, "a".into(), None)]);
+
+        // Old tombstone: removed together with everything it deleted.
+        let dir = tempfile::tempdir().unwrap();
+        let mut p = open(dir.path(), compacted_topic(|c| c.delete_retention_ms = 1_000));
+        let (raw, info) = keyed(&[("a", Some("1")), ("b", Some("1")), ("a", None)], now - 60_000);
+        p.append_local(raw, &info).unwrap();
+        p.roll().unwrap();
+        compact_now(&mut p);
+        assert_eq!(dump(&p), vec![(1, "b".into(), Some("1".into()))]);
+        assert_eq!(p.high_watermark(), 3);
+    }
+
+    #[test]
+    fn compaction_never_moves_log_start() {
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = compacted_topic(|c| c.delete_retention_ms = 0);
+        let mut p = open(dir.path(), cfg.clone());
+        let now = now_ms();
+        // The first segments hold only keys that are deleted later, so compaction empties them.
+        for i in 0..20 {
+            let (raw, info) = keyed(&[(&format!("gone-{i}"), Some(&"x".repeat(80)))], now - 10_000);
+            p.append_local(raw, &info).unwrap();
+        }
+        for i in 0..20 {
+            let (raw, info) = keyed(&[(&format!("gone-{i}"), None)], now - 10_000);
+            p.append_local(raw, &info).unwrap();
+        }
+        let (raw, info) = keyed(&[("kept", Some("1"))], now);
+        p.append_local(raw, &info).unwrap();
+        p.roll().unwrap();
+        compact_now(&mut p);
+        assert_eq!(p.log_start(), 0, "compaction must not move the log start");
+        // A consumer at offset 0 reads on from the first surviving record.
+        assert_eq!(dump(&p), vec![(40, "kept".into(), Some("1".into()))]);
+        assert!(p.read_plan(0, 1 << 20).is_ok());
+        drop(p);
+        let p = open(dir.path(), cfg);
+        assert_eq!(p.log_start(), 0);
+    }
+
+    #[test]
+    fn dirty_ratio_and_lag_gate_compaction() {
+        let dir = tempfile::tempdir().unwrap();
+        let now = now_ms();
+        let mut p = open(dir.path(), compacted_topic(|c| c.min_compaction_lag_ms = 3_600_000));
+        let (raw, info) = keyed(&[("a", Some("1")), ("a", Some("2"))], now);
+        p.append_local(raw, &info).unwrap();
+        p.roll().unwrap();
+        // Too young for the lag: nothing to do, even when forced.
+        assert!(p.compaction_job(now, true).is_none());
+
+        let dir = tempfile::tempdir().unwrap();
+        let mut p = open(dir.path(), compacted_topic(|_| {}));
+        let (raw, info) = keyed(&[("a", Some("1")), ("a", Some("2"))], now);
+        p.append_local(raw, &info).unwrap();
+        p.roll().unwrap();
+        // Everything dirty: the automatic trigger fires, and only one job runs at a time.
+        let job = p.compaction_job(now, false).expect("dirty log compacts");
+        assert!(p.compaction_job(now, true).is_none());
+        p.apply_compaction(crate::compact::run(&job)).unwrap();
+        // Freshly cleaned: below the dirty ratio until new segments arrive.
+        assert!(p.compaction_job(now, false).is_none());
+    }
+
+    #[test]
+    fn compact_only_topics_ignore_time_retention() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut p = open(dir.path(), compacted_topic(|c| c.retention_ms = 1_000));
+        let now = now_ms();
+        let (raw, info) = keyed(&[("a", Some("1"))], now - 3_600_000);
+        p.append_local(raw, &info).unwrap();
+        p.roll().unwrap();
+        p.maintenance(now).unwrap();
+        assert_eq!(p.log_start(), 0, "compact-only topics keep the latest value forever");
     }
 
     #[test]

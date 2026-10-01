@@ -79,6 +79,17 @@ bpctl topic migrate orders --to diskless
 
 Partisi mencatat **switch offset**. Semua data di bawahnya tetap di tempat ia ditulis, dan append baru masuk ke mode baru. Offset tidak pernah berubah, dan consumer tidak merasakan perbedaan. Kembali dari diskless ke local bekerja dengan cara yang sama.
 
+## Log compaction
+
+Topic dengan `cleanup.policy=compact` menyimpan **record terbaru untuk setiap key**, bukan menghapus data berdasarkan umur. Inilah yang dibutuhkan changelog Kafka Streams, tabel CDC, dan topic "state terkini". Dengan `compact,delete`, keduanya berlaku.
+
+- **Yang di-compact:** segment lokal yang sudah tertutup. Segment aktif tidak pernah disentuh, dan record yang lebih muda dari `min.compaction.lag.ms` dibiarkan.
+- **Kapan:** di latar belakang, begitu minimal `min.cleanable.dirty.ratio` (default 0,5) dari byte segment tertutup sebuah partisi belum dibersihkan. Bisa juga dijalankan langsung dengan `bpctl topic compact <topic>` atau `POST /v1/topics/{t}/compact`.
+- **Caranya:** shard menyerahkan job ke thread blocking. Thread itu membuat peta dari fingerprint 128-bit setiap key ke offset terbarunya, lalu menulis ulang setiap segment ke *generasi* file baru (`<base>-<n>.log`) yang hanya berisi record tersebut. Batch tetap memakai offset dan kompresi aslinya. Shard baru memasang file baru jika segment tidak berubah selama proses. File lama dihapus setelah 60 detik, agar pembacaan yang sudah direncanakan tetap selesai.
+- **Penghapusan:** record dengan value null (*tombstone*) menghapus key-nya. Tombstone itu sendiri disimpan selama `delete.retention.ms` (default 24 jam), agar consumer sempat melihat penghapusannya.
+- **Offset tidak pernah berubah, begitu juga log start.** Consumer cukup melewati celahnya, seperti di Kafka.
+- **Aturan:** compaction hanya untuk topic `local` (seperti tiered storage di Kafka). Setiap record wajib punya key; record tanpa key ditolak dengan `INVALID_RECORD`.
+
 ## Consumer group
 
 - **Group Kafka:** protokol klasik (JoinGroup, SyncGroup, Heartbeat, OffsetCommit, OffsetFetch). Assignment dilakukan klien seperti biasa. Offset yang di-commit disimpan di log append-only per node.

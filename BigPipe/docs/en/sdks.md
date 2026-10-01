@@ -23,6 +23,7 @@ The HTTP-based SDKs accept a Kafka-style `bootstrap: "localhost:9092"` and use t
 | Share group | `ShareConsumerBuilder<K,V>` | `ShareConsumer` | `ShareConsumer` | `NewShareConsumer` | `ShareConsumer.builder()` |
 | SSE stream with filter | `BigPipeHttpClient.StreamAsync` | `stream()` | `stream()` | `Stream()` | `BigPipeStream.subscribe` |
 | Admin | `BigPipeAdminClient` | `Admin` | `Admin` | `NewAdmin` | `Admin` |
+| Compact a topic | `CompactAsync` | `compact()` | `compact()` | `Compact()` | `compact()` |
 
 ## .NET
 
@@ -92,6 +93,8 @@ public sealed class OrderHandler : IBigPipeHandler<string, Order>
     public Task HandleAsync(ConsumeContext<string, Order> ctx, CancellationToken ct) { /* ... */ return Task.CompletedTask; }
 }
 ```
+
+`KafkaAdminClient` creates topics over the Kafka protocol with only a bootstrap address (for example `new NewTopic("users", 6, new Dictionary<string, string> { ["cleanup.policy"] = "compact" })`), against BigPipe or Apache Kafka.
 
 **Schema Registry**
 

@@ -32,7 +32,7 @@ var store = app.Store<Windowed<string>, MerchantTotals>("merchant-totals");   //
 
 - **Operators:** `Filter`/`FilterNot`, `Map`, `MapValues`, `FlatMap`, `FlatMapValues`, `SelectKey`, `Peek`, `Branch`, `Merge`, `GroupByKey`/`GroupBy`, `Count`, `Reduce`, `Aggregate`, stream–table `Join`/`LeftJoin` (tables come from `builder.Table<K,V>(topic)`), `ToStream`, `To`.
 - **Windows:** `TumblingWindow`, `HoppingWindow`, `SlidingWindow` and `SessionWindow`, each with a grace period for late records.
-- **State:** `Stores.Persistent` keeps state in memory and writes every change to `<app>-<store>-changelog`. On restart, the store is rebuilt from that topic. `Stores.InMemory` skips the changelog.
+- **State:** `Stores.Persistent` keeps state in memory and writes every change to `<app>-<store>-changelog`. This is a compacted topic (`cleanup.policy=compact`, created on start), so it keeps the latest value per key without expiring. On restart, the store is rebuilt from that topic. `Stores.InMemory` skips the changelog.
 - **Scaling:** partitions are split across instances with the same `ApplicationId` through a normal consumer group.
 
 ## BigPipe.Analytics

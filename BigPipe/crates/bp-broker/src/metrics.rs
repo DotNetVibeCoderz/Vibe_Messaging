@@ -69,6 +69,8 @@ pub struct Metrics {
     pub diskless_files_total: AtomicU64,
     pub diskless_bytes_total: AtomicU64,
     pub tiered_uploads_total: AtomicU64,
+    pub compactions_total: AtomicU64,
+    pub compaction_removed_records_total: AtomicU64,
     pub rebalances_total: AtomicU64,
     pub produce_latency: Histogram,
     pub fetch_latency: Histogram,
@@ -87,6 +89,7 @@ pub struct MetricsSnapshot {
     pub diskless_files_total: u64,
     pub diskless_bytes_total: u64,
     pub tiered_uploads_total: u64,
+    pub compactions_total: u64,
     pub rebalances_total: u64,
     pub produce_p50_ms: f64,
     pub produce_p99_ms: f64,
@@ -107,6 +110,7 @@ impl Metrics {
             diskless_files_total: self.diskless_files_total.load(Relaxed),
             diskless_bytes_total: self.diskless_bytes_total.load(Relaxed),
             tiered_uploads_total: self.tiered_uploads_total.load(Relaxed),
+            compactions_total: self.compactions_total.load(Relaxed),
             rebalances_total: self.rebalances_total.load(Relaxed),
             produce_p50_ms: self.produce_latency.quantile(0.5) * 1000.0,
             produce_p99_ms: self.produce_latency.quantile(0.99) * 1000.0,
@@ -117,7 +121,7 @@ impl Metrics {
 
     pub fn render_openmetrics(&self, extra: &str) -> String {
         let mut out = String::with_capacity(4096);
-        let counters: [(&str, &str, &AtomicU64); 12] = [
+        let counters: [(&str, &str, &AtomicU64); 14] = [
             ("bp_connections_total", "Kafka connections accepted", &self.connections_total),
             ("bp_requests_total", "Kafka requests handled", &self.requests_total),
             ("bp_request_errors_total", "Kafka requests that failed to decode", &self.request_errors_total),
@@ -130,6 +134,8 @@ impl Metrics {
             ("bp_diskless_bytes_total", "Diskless bytes written", &self.diskless_bytes_total),
             ("bp_tiered_uploads_total", "Segments uploaded to object storage", &self.tiered_uploads_total),
             ("bp_group_rebalances_total", "Consumer group rebalances", &self.rebalances_total),
+            ("bp_compactions_total", "Partition compactions completed", &self.compactions_total),
+            ("bp_compaction_removed_records_total", "Records removed by log compaction", &self.compaction_removed_records_total),
         ];
         for (name, help, v) in counters {
             let _ = writeln!(out, "# HELP {name} {help}\n# TYPE {name} counter\n{name} {}", v.load(Relaxed));

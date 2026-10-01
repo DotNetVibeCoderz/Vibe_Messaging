@@ -432,6 +432,89 @@ fn read_field(all: &Bytes, buf: &[u8], pos: &mut usize) -> Result<Option<Bytes>,
     Ok(Some(b))
 }
 
+/// Outcome of [`rebuild_batch`].
+#[derive(Debug)]
+pub enum Rebuilt {
+    /// Every record was kept: reuse the original bytes.
+    Unchanged,
+    /// No record was kept: drop the batch.
+    Empty,
+    /// Some records were kept: a new batch holding only those.
+    New(BytesMut),
+}
+
+/// Rewrites the stored batch at the start of `raw`, keeping only the records for which `keep`
+/// returns true (log compaction). The new batch keeps the original base offset, last offset
+/// delta, attributes (compression, timestamp type, transactional flag) and producer fields,
+/// so offsets never change and consumers continue after the batch exactly as before.
+/// Control batches are never rewritten.
+pub fn rebuild_batch(raw: &[u8], mut keep: impl FnMut(&Record) -> bool) -> Result<Rebuilt, ProtocolError> {
+    let h = BatchHeader::parse(raw)?;
+    if h.is_control() {
+        return Ok(Rebuilt::Unchanged);
+    }
+    let records = decode_batch(raw)?;
+    let kept: Vec<&Record> = records.iter().filter(|r| keep(r)).collect();
+    if kept.len() == records.len() {
+        return Ok(Rebuilt::Unchanged);
+    }
+    if kept.is_empty() {
+        return Ok(Rebuilt::Empty);
+    }
+    let compression = h.compression()?;
+    let log_append_time = h.attributes() & 0x08 != 0;
+    let base_offset = h.base_offset();
+    let base_ts = if log_append_time { h.base_timestamp() } else { kept[0].timestamp };
+    let max_ts = if log_append_time { h.max_timestamp() } else { kept.iter().map(|r| r.timestamp).max().unwrap_or(-1) };
+    let mut body = Vec::with_capacity(raw.len());
+    for r in &kept {
+        // Log-append-time batches carry one timestamp for all records (deltas are ignored).
+        let ts_delta = if log_append_time { 0 } else { r.timestamp - base_ts };
+        let off_delta = r.offset - base_offset;
+        let field_len = |b: &Option<Bytes>| match b {
+            Some(b) => varlong_len(b.len() as i64) + b.len(),
+            None => varlong_len(-1),
+        };
+        let mut len = 1 + varlong_len(ts_delta) + varlong_len(off_delta);
+        len += field_len(&r.key) + field_len(&r.value);
+        len += varlong_len(r.headers.len() as i64);
+        for hd in &r.headers {
+            len += varlong_len(hd.key.len() as i64) + hd.key.len() + field_len(&hd.value);
+        }
+        write_varlong(&mut body, len as i64);
+        body.push(0);
+        write_varlong(&mut body, ts_delta);
+        write_varlong(&mut body, off_delta);
+        write_field(&mut body, r.key.as_deref());
+        write_field(&mut body, r.value.as_deref());
+        write_varlong(&mut body, r.headers.len() as i64);
+        for hd in &r.headers {
+            write_field(&mut body, Some(hd.key.as_bytes()));
+            write_field(&mut body, hd.value.as_deref());
+        }
+    }
+    let payload = compress(compression, &body)?;
+    let total = BATCH_HEADER_LEN + payload.len();
+    let mut b = BytesMut::with_capacity(total);
+    b.put_i64(base_offset);
+    b.put_i32((total - LOG_OVERHEAD) as i32);
+    b.put_i32(0);
+    b.put_i8(2);
+    b.put_u32(0); // crc placeholder
+    b.put_i16(h.attributes());
+    b.put_i32(h.last_offset_delta());
+    b.put_i64(base_ts);
+    b.put_i64(max_ts);
+    b.put_i64(h.producer_id());
+    b.put_i16(h.producer_epoch());
+    b.put_i32(h.base_sequence());
+    b.put_i32(kept.len() as i32);
+    b.put_slice(&payload);
+    let crc = crc32c::crc32c(&b[OFF_ATTRIBUTES..]);
+    b[OFF_CRC..OFF_CRC + 4].copy_from_slice(&crc.to_be_bytes());
+    Ok(Rebuilt::New(b))
+}
+
 /// Decodes every record in a buffer of stored batches, dropping records below `min_offset`.
 pub fn decode_records(raw: &[u8], min_offset: i64) -> Result<Vec<Record>, ProtocolError> {
     let mut out = Vec::new();
@@ -604,6 +687,29 @@ mod tests {
             assert_eq!(recs[0].header("region"), Some(&b"ID"[..]));
             assert_eq!(&recs[2].value.as_ref().unwrap()[..], b"{\"n\":4}");
         }
+    }
+
+    #[test]
+    fn rebuild_keeps_offsets_and_attributes() {
+        for c in [Compression::None, Compression::Lz4, Compression::Zstd] {
+            let mut raw = sample(6, c);
+            assign_offsets(&mut raw, 40);
+            let Rebuilt::New(out) = rebuild_batch(&raw, |r| r.offset % 2 == 1).unwrap() else { panic!("expected a new batch") };
+            let info = validate_batches(&out).unwrap();
+            assert_eq!(info.record_count, 3);
+            // The last offset delta is preserved so the next batch still continues at 46.
+            let h = BatchHeader::parse(&out).unwrap();
+            assert_eq!((h.base_offset(), h.last_offset()), (40, 45));
+            assert_eq!(h.compression().unwrap(), c);
+            let recs = decode_records(&out, 0).unwrap();
+            assert_eq!(recs.iter().map(|r| r.offset).collect::<Vec<_>>(), vec![41, 43, 45]);
+            assert_eq!(recs.iter().map(|r| r.timestamp).collect::<Vec<_>>(), vec![1_001, 1_003, 1_005]);
+            assert_eq!(&recs[1].key.as_ref().unwrap()[..], b"k3");
+            assert_eq!(recs[2].header("region"), Some(&b"ID"[..]));
+        }
+        let raw = sample(3, Compression::None);
+        assert!(matches!(rebuild_batch(&raw, |_| true).unwrap(), Rebuilt::Unchanged));
+        assert!(matches!(rebuild_batch(&raw, |_| false).unwrap(), Rebuilt::Empty));
     }
 
     #[test]

@@ -246,8 +246,75 @@ def test_sse_and_http_groups():
     check("HTTP group committed offsets visible", grp["offsets"][0]["committed"] == 3 and grp["lag"] == 0)
 
 
+def test_compaction():
+    from confluent_kafka import Consumer, KafkaException, Producer, TopicPartition
+    from confluent_kafka.admin import AdminClient, ConfigResource, NewTopic
+
+    t = uid("cmp")
+    admin = AdminClient({"bootstrap.servers": BOOT})
+    fut = admin.create_topics([NewTopic(t, 1, 1, config={"cleanup.policy": "compact", "segment.bytes": "1024"})])[t]
+    fut.result(15)
+    res = admin.describe_configs([ConfigResource(ConfigResource.Type.TOPIC, t)])
+    cfg = list(res.values())[0].result(15)
+    check("create compacted topic over the Kafka protocol", cfg["cleanup.policy"].value == "compact")
+
+    s, r = call("POST", f"{ADMIN}/v1/topics", {"name": uid("cmpdl"), "mode": "diskless", "config": {"cleanup.policy": "compact"}})
+    check("compaction refused for diskless topics", s == 400 and "local" in r["error"]["message"], str(r))
+
+    keys = [f"user-{i}" for i in range(10)]
+    p = Producer({"bootstrap.servers": BOOT, "enable.idempotence": True, "linger.ms": 0, "batch.num.messages": 1})
+    for rnd in range(30):
+        for k in keys:
+            p.produce(t, key=k, value=json.dumps({"user": k, "round": rnd, "pad": "x" * 40}))
+        p.flush(10)  # one batch per round so segments roll every few rounds
+    p.produce(t, key="user-3", value=None)  # tombstone
+    p.flush(10)
+    errs = []
+    p.produce(t, key=None, value="no key", on_delivery=lambda e, m: errs.append(e))
+    p.flush(10)
+    check("null key rejected on compacted topic", len(errs) == 1 and errs[0] is not None and errs[0].code() == 87,
+          str(errs[0]) if errs else "no delivery report")
+
+    s, r = call("POST", f"{ADMIN}/v1/topics/{t}/compact")
+    part = r["partitions"][0] if s == 200 else {}
+    # The background cleaner may have run first; either way the forced run completes.
+    check("compact via admin API", s == 200 and part.get("compacted") is True, str(part))
+
+    _, info = call("GET", f"{ADMIN}/v1/topics/{t}")
+    d = info["partition_details"][0]
+    check("compaction removed superseded records", d["compactions"] >= 1 and d["compaction_removed_records"] >= 250,
+          f'{d["compactions"]} runs, {d["compaction_removed_records"]} removed')
+    check("compaction keeps the log start offset", d["log_start_offset"] == 0, str(d["log_start_offset"]))
+
+    hw = 301
+    c = Consumer({"bootstrap.servers": BOOT, "group.id": uid("g"), "auto.offset.reset": "earliest", "enable.auto.commit": False})
+    c.assign([TopicPartition(t, 0, 0)])
+    got, deadline = [], time.time() + 20
+    while time.time() < deadline and (not got or got[-1][0] < hw - 1):
+        m = c.poll(1.0)
+        if m is None:
+            continue
+        if m.error():
+            raise KafkaException(m.error())
+        got.append((m.offset(), m.key().decode(), m.value()))
+    c.close()
+    offsets = [o for o, _, _ in got]
+    latest = {}
+    for _, k, v in got:
+        latest[k] = v
+    ok = (
+        offsets == sorted(set(offsets))
+        and offsets[-1] == hw - 1
+        and len(got) < 300
+        and all(json.loads(latest[k])["round"] == 29 for k in keys if k != "user-3")
+        and latest["user-3"] is None
+    )
+    check("librdkafka reads the compacted log across offset gaps", ok, f"{len(got)} of 301 records remain, last offset {offsets[-1] if offsets else None}")
+
+
 if __name__ == "__main__":
-    for fn in [test_diskless, test_migration, test_tiered, test_share_groups, test_flow, test_rebalance, test_sse_and_http_groups]:
+    for fn in [test_diskless, test_migration, test_tiered, test_share_groups, test_flow, test_rebalance, test_sse_and_http_groups,
+               test_compaction]:
         try:
             fn()
         except Exception as e:  # noqa: BLE001

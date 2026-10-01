@@ -112,6 +112,7 @@ If `admin_api_key` is set, every call needs `Authorization: Bearer <key>`.
 | `PATCH /v1/topics/{t}/config` | `{"config":{"retention.ms":"86400000","flush.ms":null}}` (`null` resets to the default) |
 | `POST /v1/topics/{t}/partitions` | `{"count":12}`: grow to 12 partitions |
 | `POST /v1/topics/{t}/migrate` | `{"to":"diskless"}`: online storage migration; returns `switch_offsets` |
+| `POST /v1/topics/{t}/compact` | compact a `cleanup.policy=compact` topic now; returns records and bytes before/after per partition |
 | `GET /v1/topics/{t}/messages` | message browser: `?partition=&offset=&limit=&filter=` |
 | `GET /v1/groups` · `GET /v1/groups/{g}` · `DELETE /v1/groups/{g}` | list, describe (members, committed offsets, lag), delete |
 | `POST /v1/groups/{g}/reset` | `{"topic","to":"earliest\|latest\|offset","offset":0,"partitions":[0,1]}`; the group must be empty |
@@ -122,7 +123,7 @@ If `admin_api_key` is set, every call needs `Authorization: Bearer <key>`.
 
 ## Metrics (9645)
 
-`GET /metrics` returns OpenMetrics text: `bp_produce_records_total`, `bp_produce_bytes_total`, `bp_fetch_records_total`, `bp_fetch_bytes_total`, `bp_requests_total`, `bp_request_errors_total`, `bp_http_requests_total`, `bp_connections_open`, `bp_connections_total`, `bp_produce_latency_seconds`, `bp_fetch_latency_seconds` (histograms), `bp_diskless_files_total`, `bp_diskless_bytes_total`, `bp_diskless_put_latency_seconds`, `bp_diskless_files_referenced`, `bp_tiered_uploads_total`, `bp_object_cache_bytes`, `bp_group_rebalances_total` and `bp_topics`.
+`GET /metrics` returns OpenMetrics text: `bp_produce_records_total`, `bp_produce_bytes_total`, `bp_fetch_records_total`, `bp_fetch_bytes_total`, `bp_requests_total`, `bp_request_errors_total`, `bp_http_requests_total`, `bp_connections_open`, `bp_connections_total`, `bp_produce_latency_seconds`, `bp_fetch_latency_seconds` (histograms), `bp_diskless_files_total`, `bp_diskless_bytes_total`, `bp_diskless_put_latency_seconds`, `bp_diskless_files_referenced`, `bp_tiered_uploads_total`, `bp_object_cache_bytes`, `bp_group_rebalances_total`, `bp_compactions_total`, `bp_compaction_removed_records_total` and `bp_topics`.
 
 ## AdminApi gateway (9650)
 

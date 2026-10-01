@@ -741,6 +741,12 @@ func (a *Admin) Migrate(ctx context.Context, name, to string) (map[string]any, e
 	return out, a.c.do(ctx, "POST", "/v1/topics/"+url.PathEscape(name)+"/migrate", nil, map[string]any{"to": to}, &out)
 }
 
+// Compact compacts a cleanup.policy=compact topic now, keeping the latest record per key.
+func (a *Admin) Compact(ctx context.Context, name string) (map[string]any, error) {
+	var out map[string]any
+	return out, a.c.do(ctx, "POST", "/v1/topics/"+url.PathEscape(name)+"/compact", nil, map[string]any{}, &out)
+}
+
 // Group returns a group with per-partition lag.
 func (a *Admin) Group(ctx context.Context, id string) (map[string]any, error) {
 	var out map[string]any

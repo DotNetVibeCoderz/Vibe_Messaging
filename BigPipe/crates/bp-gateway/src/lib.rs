@@ -63,6 +63,7 @@ impl From<BrokerError> for ApiError {
             BrokerError::InvalidConfig(_) => "invalid_config",
             BrokerError::InvalidRecord(_) => "invalid_record",
             BrokerError::TooLarge(_) => "too_large",
+            BrokerError::Transactional => "unsupported",
             BrokerError::Storage(bp_storage::StorageError::OffsetOutOfRange { .. }) => "offset_out_of_range",
             BrokerError::Storage(_) => "storage_error",
         };

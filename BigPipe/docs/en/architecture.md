@@ -77,6 +77,17 @@ bpctl topic migrate orders --to diskless
 
 The partition records a **switch offset**. Everything below it stays where it was written, and new appends go to the new mode. Offsets never change, and consumers do not notice. Moving from diskless back to local works the same way.
 
+## Log compaction
+
+Topics with `cleanup.policy=compact` keep the **latest record for every key** instead of expiring data by age. This is what Kafka Streams changelogs, CDC tables and "current state" topics need. With `compact,delete`, both apply.
+
+- **What is compacted:** sealed local segments. The active segment is never touched, and records younger than `min.compaction.lag.ms` are left alone.
+- **When:** in the background, once at least `min.cleanable.dirty.ratio` (default 0.5) of a partition's sealed bytes has not been cleaned yet. You can also run it now with `bpctl topic compact <topic>` or `POST /v1/topics/{t}/compact`.
+- **How:** the shard hands a job to a blocking thread. That thread builds a map from each key's 128-bit fingerprint to its latest offset, then rewrites each segment into a new file *generation* (`<base>-<n>.log`), keeping only those records. Batches keep their offsets and compression. The shard swaps the new files in only if the segment did not change in the meantime. Old files are deleted after 60 s, so reads that are already planned can finish.
+- **Deletes:** a record with a null value (a *tombstone*) removes its key. The tombstone itself is kept for `delete.retention.ms` (default 24 h), so consumers can see the delete.
+- **Offsets never change, and neither does the log start.** Consumers simply skip the gaps, as with Kafka.
+- **Rules:** compaction works on `local` topics only (as with Kafka's tiered storage). Every record needs a key; a record without one is rejected with `INVALID_RECORD`.
+
 ## Consumer groups
 
 - **Kafka groups:** the classic protocol (JoinGroup, SyncGroup, Heartbeat, OffsetCommit, OffsetFetch). Assignment is done by the client as usual. Committed offsets are stored in an append-only log per node.

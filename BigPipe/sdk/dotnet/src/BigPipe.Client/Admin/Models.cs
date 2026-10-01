@@ -44,7 +44,10 @@ public sealed record PartitionDetail(
     int DisklessExtents,
     long CacheBytes,
     long RecordsIn,
-    long BytesIn);
+    long BytesIn,
+    long Compactions = 0,
+    long CompactionRemovedRecords = 0,
+    long LastCompactionMs = 0);
 
 public sealed record TopicInfo(
     string Name,
@@ -57,6 +60,20 @@ public sealed record TopicInfo(
     IReadOnlyDictionary<string, string> Config,
     IReadOnlyDictionary<string, string> EffectiveConfig,
     IReadOnlyList<PartitionDetail>? PartitionDetails);
+
+/// <summary>Outcome of compacting one partition (<see cref="BigPipeAdminClient.CompactAsync"/>).</summary>
+public sealed record PartitionCompaction(
+    int Partition,
+    bool Compacted,
+    int Segments = 0,
+    long RecordsBefore = 0,
+    long RecordsAfter = 0,
+    long BytesBefore = 0,
+    long BytesAfter = 0,
+    long DurationMs = 0,
+    string? Reason = null);
+
+public sealed record CompactionResult(string Topic, IReadOnlyList<PartitionCompaction> Partitions);
 
 public sealed record MigrationResult(string Topic, StorageMode From, StorageMode To, IReadOnlyDictionary<string, long> SwitchOffsets);
 

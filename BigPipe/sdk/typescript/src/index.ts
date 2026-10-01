@@ -524,6 +524,11 @@ export class Admin {
     return this.req("POST", `/v1/topics/${encodeURIComponent(name)}/migrate`, { to });
   }
 
+  /** Compacts a `cleanup.policy=compact` topic now (keeps the latest record per key). */
+  compact(name: string): Promise<any> {
+    return this.req("POST", `/v1/topics/${encodeURIComponent(name)}/compact`, {});
+  }
+
   async browse(topic: string, options: { limit?: number; partition?: number; offset?: string; filter?: string } = {}): Promise<BigPipeRecord[]> {
     const res = await this.req<{ records: any[] }>("GET", `/v1/topics/${encodeURIComponent(topic)}/messages`, undefined, {
       limit: options.limit ?? 50,

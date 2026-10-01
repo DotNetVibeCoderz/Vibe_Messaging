@@ -25,6 +25,7 @@ pub fn admin_router(b: AppState) -> Router {
         .route("/v1/topics/{name}/config", axum::routing::patch(patch_config))
         .route("/v1/topics/{name}/partitions", post(add_partitions))
         .route("/v1/topics/{name}/migrate", post(migrate))
+        .route("/v1/topics/{name}/compact", post(compact))
         .route("/v1/topics/{name}/messages", get(browse))
         .route("/v1/groups", get(list_groups))
         .route("/v1/groups/{id}", get(get_group).delete(delete_group))
@@ -221,6 +222,25 @@ async fn migrate(State(b): State<AppState>, Path(name): Path<String>, Json(body)
         "switch_offsets": hw,
         "note": "offsets below switch_offsets stay in the previous storage; new data uses the new mode",
     })))
+}
+
+/// Compacts a `cleanup.policy=compact` topic now (normally it happens in the background once
+/// `min.cleanable.dirty.ratio` of the log is dirty).
+async fn compact(State(b): State<AppState>, Path(name): Path<String>) -> ApiResult<Json<Value>> {
+    let t = b.topic(&name).ok_or_else(|| ApiError::not_found(format!("unknown topic `{name}`")))?;
+    let results = b.compact(&t).await?;
+    let partitions: Vec<Value> = results
+        .into_iter()
+        .map(|(p, st)| match st {
+            Some(st) => json!({
+                "partition": p, "compacted": true, "segments": st.segments,
+                "records_before": st.records_before, "records_after": st.records_after,
+                "bytes_before": st.bytes_before, "bytes_after": st.bytes_after, "duration_ms": st.duration_ms,
+            }),
+            None => json!({ "partition": p, "compacted": false, "reason": "no sealed segments old enough to compact" }),
+        })
+        .collect();
+    Ok(Json(json!({ "topic": name, "partitions": partitions })))
 }
 
 #[derive(Deserialize)]

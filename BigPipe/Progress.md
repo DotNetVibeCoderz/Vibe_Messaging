@@ -4,6 +4,25 @@ Development log for BigPipe. Newest entries on top. The roadmap is in [PLAN.md](
 
 *Catatan pengembangan BigPipe. Entri terbaru di atas. Peta jalan ada di [PLAN.md](PLAN.md).*
 
+## 2026-10-02: log compaction · log compaction (roadmap 0.5)
+
+**Done · Selesai**
+
+- `cleanup.policy=compact` and `compact,delete` with `min.cleanable.dirty.ratio`, `min.compaction.lag.ms` and `delete.retention.ms`. Compaction runs in the background on a blocking thread, writes a new segment *generation* and swaps it in only if the segment did not change. Offsets and the log start never move, tombstones live for `delete.retention.ms`, and compact-only topics ignore time and size retention. · Compaction berjalan di latar belakang di thread blocking, menulis *generasi* segment baru, dan hanya dipasang jika segment tidak berubah; offset dan log start tidak pernah bergeser.
+- Trigger now: `bpctl topic compact`, `POST /v1/topics/{t}/compact`, and `compact` in every SDK admin client. Stats per partition are in the topic details, plus `bp_compactions_total` and `bp_compaction_removed_records_total`. · Pemicu manual dan statistik di semua klien admin dan metrik.
+- Kafka parity: compaction is refused for tiered and diskless topics, and null-key records are rejected with `INVALID_RECORD`. · Paritas Kafka: ditolak untuk topic tiered/diskless, record tanpa key ditolak.
+- BigPipe.Streams creates store changelogs as compacted topics through the new `KafkaAdminClient` (Kafka `CreateTopics`). · Changelog BigPipe.Streams kini dibuat sebagai topic compacted.
+- **Fix:** pipelined produce requests on one Kafka connection could reach a partition out of order, and idempotent producers with several requests in flight then failed with `OUT_OF_ORDER_SEQUENCE_NUMBER`. Appends are now enqueued in arrival order and only the wait runs concurrently. Benchmarks are unchanged (1 KiB: 441 MiB/s; 100 B lz4: 6.4 M records/s). · **Perbaikan:** request produce yang di-pipeline di satu koneksi bisa sampai ke partisi tidak berurutan; kini di-enqueue sesuai urutan datang.
+
+**Verification · Verifikasi**
+
+| Suite | Result · Hasil |
+|---|---|
+| `cargo test --workspace` | all pass, including 6 new compaction tests · semua lulus |
+| `tests/integration/test_features.py` | 29/29, three runs in a row · tiga kali berturut-turut |
+| `tests/compat/python_compat.py` | 17/17 |
+| `dotnet test` | 40/40 |
+
 ## 2026-09-29: 0.1.0 complete · 0.1.0 selesai
 
 **Done · Selesai**

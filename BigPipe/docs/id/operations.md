@@ -32,7 +32,7 @@ Diatur saat membuat topic (`bpctl topic create t -c key=value`, `"config":{}` di
 | Key | Default | Arti |
 |---|---|---|
 | `bigpipe.storage.mode` | `local` | `local`, `tiered`, atau `diskless`; mengubahnya berarti migrasi online |
-| `retention.ms` / `retention.bytes` | 7 hari / `-1` | segment yang lebih tua atau melebihi ukuran dihapus utuh (`-1` = tanpa batas) |
+| `retention.ms` / `retention.bytes` | 7 hari / `-1` | segment yang lebih tua atau melebihi ukuran dihapus utuh (`-1` = tanpa batas). Hanya berlaku jika `cleanup.policy` memuat `delete` |
 | `segment.bytes` / `segment.ms` | 256 MiB / 7 hari | kapan segment aktif diganti |
 | `local.retention.ms` | 1 jam | tiered: berapa lama segment yang sudah diunggah tetap ada di disk lokal |
 | `bigpipe.durability` | `flush` | `flush`: ack setelah masuk page cache OS (default Kafka); `fsync`: sinkron sebelum ack |
@@ -40,7 +40,10 @@ Diatur saat membuat topic (`bpctl topic create t -c key=value`, `"config":{}` di
 | `max.message.bytes` | 8 MiB | batch record terbesar |
 | `bigpipe.cache.bytes` | 4 MiB | cache baca per partisi untuk data terbaru |
 | `bigpipe.schema.validation` | `none` | `strict`: tolak record yang value-nya bukan JSON valid; `lenient` diterima tetapi belum melakukan pengecekan |
-| `cleanup.policy` | `delete` | disimpan untuk kompatibilitas; compaction ada di roadmap |
+| `cleanup.policy` | `delete` | `delete`, `compact` (simpan record terbaru per key; hanya topic `local`), atau `compact,delete` |
+| `min.cleanable.dirty.ratio` | 0,5 | compact begitu porsi log tertutup yang belum dibersihkan mencapai nilai ini |
+| `min.compaction.lag.ms` | 0 | record yang lebih muda dari ini tidak pernah di-compact |
+| `delete.retention.ms` | 24 jam | berapa lama tombstone (value null) bertahan setelah compaction |
 
 ## Object storage
 

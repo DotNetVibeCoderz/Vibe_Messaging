@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using BigPipe.Client;
+using BigPipe.Client.Admin;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -115,6 +116,7 @@ public sealed class StreamsApp : IAsyncDisposable
             _log.LogWarning("BigPipe.Streams: exactly-once is not available yet; running at-least-once with an idempotent producer");
         try
         {
+            await EnsureChangelogTopicsAsync(ct).ConfigureAwait(false);
             await using var producer = new ProducerBuilder<byte[]?, byte[]?>(new ProducerConfig
             {
                 Bootstrap = _cfg.Bootstrap,
@@ -197,6 +199,28 @@ public sealed class StreamsApp : IAsyncDisposable
         if (acc.Contains(n)) return;
         acc.Add(n);
         foreach (var c in n.Children) Collect(c, acc);
+    }
+
+    /// <summary>
+    /// Creates store changelogs as compacted topics (as Kafka Streams does), so they keep the
+    /// latest value per key forever instead of expiring with time retention. Existing topics are
+    /// left as they are.
+    /// </summary>
+    private async Task EnsureChangelogTopicsAsync(CancellationToken ct)
+    {
+        var compacted = new Dictionary<string, string> { ["cleanup.policy"] = "compact" };
+        var topics = _topology.Stores.Values.Where(s => s.Spec.Changelog)
+            .Select(s => new NewTopic(ChangelogTopic(s), Config: compacted)).ToList();
+        if (topics.Count == 0) return;
+        try
+        {
+            await using var admin = new KafkaAdminClient(_cfg.Bootstrap, _cfg.ApplicationId + "-admin");
+            await admin.EnsureTopicsAsync(topics, ct).ConfigureAwait(false);
+        }
+        catch (BigPipeException e)
+        {
+            _log.LogWarning(e, "BigPipe.Streams could not create compacted changelog topics; they will be auto-created with broker defaults");
+        }
     }
 
     /// <summary>Flush outputs and changelogs, then commit consumed offsets.</summary>

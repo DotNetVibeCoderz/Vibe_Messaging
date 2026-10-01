@@ -11,7 +11,7 @@ use bp_protocol::messages::error;
 use bp_protocol::records::{self, Record};
 use bp_storage::diskless::FileRefs;
 use bp_storage::partition::{PartitionInfo, now_ms};
-use bp_storage::{AppendResult, ObjectStorage, StorageError, StorageMode, TopicConfig};
+use bp_storage::{AppendResult, CompactionStats, ObjectStorage, StorageError, StorageMode, TopicConfig};
 use bytes::{Bytes, BytesMut};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -39,6 +39,8 @@ pub enum BrokerError {
     InvalidRecord(String),
     #[error("record batch larger than max.message.bytes ({0} bytes)")]
     TooLarge(usize),
+    #[error("transactional produce is not supported yet")]
+    Transactional,
     #[error(transparent)]
     Storage(#[from] StorageError),
 }
@@ -53,6 +55,7 @@ impl BrokerError {
             BrokerError::InvalidConfig(_) => error::INVALID_CONFIG,
             BrokerError::InvalidRecord(_) => error::INVALID_RECORD,
             BrokerError::TooLarge(_) => error::MESSAGE_TOO_LARGE,
+            BrokerError::Transactional => error::TRANSACTIONAL_ID_AUTHORIZATION_FAILED,
             BrokerError::Storage(e) => e.kafka_code(),
         }
     }
@@ -92,6 +95,14 @@ struct PersistedTopic {
     partitions: i32,
     config: BTreeMap<String, String>,
     created_ms: i64,
+}
+
+/// An append handed to its shard or the diskless agent, not yet acknowledged.
+pub struct PendingAppend {
+    rx: tokio::sync::oneshot::Receiver<Result<AppendResult, StorageError>>,
+    started: Instant,
+    records: u64,
+    bytes: u64,
 }
 
 pub struct FetchData {
@@ -404,6 +415,14 @@ impl Broker {
 
     /// Appends a produce payload (one or more record batches) to a partition.
     pub async fn produce(&self, topic: &TopicMeta, partition: i32, raw: BytesMut) -> Result<AppendResult, BrokerError> {
+        let pending = self.produce_enqueue(topic, partition, raw)?;
+        self.finish_append(pending).await
+    }
+
+    /// Validates a produce payload and hands it to its shard (or the diskless agent) right away,
+    /// without waiting. Appends enqueued one after another reach the partition in that order,
+    /// which idempotent producers with several requests in flight rely on.
+    pub fn produce_enqueue(&self, topic: &TopicMeta, partition: i32, raw: BytesMut) -> Result<PendingAppend, BrokerError> {
         if partition < 0 || partition >= topic.partitions {
             return Err(BrokerError::UnknownTopic(format!("{}-{partition}", topic.name)));
         }
@@ -415,17 +434,43 @@ impl Broker {
         if topic.config.schema_validation == "strict" {
             validate_json_values(&raw)?;
         }
+        if topic.config.compact() {
+            require_keys(&raw)?;
+        }
         let key: TpKey = (topic.name.clone(), partition);
-        let len = raw.len() as u64;
-        let r = if topic.config.mode == StorageMode::Diskless {
-            self.agent.append(key, raw, info).await?
+        let bytes = raw.len() as u64;
+        let rx = if topic.config.mode == StorageMode::Diskless {
+            self.agent.enqueue(key, raw, info)?
         } else {
-            self.shard(&topic.name, partition).call(|reply| ShardCmd::Append { key, raw, info, reply }).await?
+            self.shard(&topic.name, partition).request(|reply| ShardCmd::Append { key, raw, info, reply })
         };
-        self.metrics.produce_latency.observe(started.elapsed());
-        self.metrics.produce_records_total.fetch_add(info.record_count as u64, Relaxed);
-        self.metrics.produce_bytes_total.fetch_add(len, Relaxed);
+        Ok(PendingAppend { rx, started, records: info.record_count as u64, bytes })
+    }
+
+    /// Waits for an enqueued append and records produce metrics.
+    pub async fn finish_append(&self, p: PendingAppend) -> Result<AppendResult, BrokerError> {
+        let r = p.rx.await.map_err(|_| StorageError::Io(std::io::Error::other("append dropped")))??;
+        self.metrics.produce_latency.observe(p.started.elapsed());
+        self.metrics.produce_records_total.fetch_add(p.records, Relaxed);
+        self.metrics.produce_bytes_total.fetch_add(p.bytes, Relaxed);
         Ok(r)
+    }
+
+    /// Compacts every partition of a `cleanup.policy=compact` topic now, ignoring the dirty
+    /// ratio. Returns per-partition stats (`None`: nothing sealed to compact yet).
+    pub async fn compact(&self, topic: &TopicMeta) -> Result<Vec<(i32, Option<CompactionStats>)>, BrokerError> {
+        if !topic.config.compact() {
+            return Err(BrokerError::InvalidConfig(format!(
+                "topic `{}` has cleanup.policy={}; set it to compact first",
+                topic.name, topic.config.cleanup_policy
+            )));
+        }
+        let futs = (0..topic.partitions).map(|p| async move {
+            let key: TpKey = (topic.name.clone(), p);
+            let r = self.shard(&topic.name, p).call(|reply| ShardCmd::Compact { key, reply }).await?;
+            Ok::<_, BrokerError>((p, r))
+        });
+        futures::future::join_all(futs).await.into_iter().collect()
     }
 
     /// Chooses a partition: explicit, else murmur2(key) like Kafka, else round-robin.
@@ -596,6 +641,18 @@ impl Broker {
 }
 
 /// `bigpipe.schema.validation=strict`: every record value must be valid JSON.
+/// Compacted topics keep the latest record per key, so every record needs one (as in Kafka).
+fn require_keys(raw: &[u8]) -> Result<(), BrokerError> {
+    for (pos, _) in records::BatchIter::new(raw) {
+        for r in records::decode_batch(&raw[pos..]).map_err(|e| BrokerError::InvalidRecord(e.to_string()))? {
+            if r.key.is_none() {
+                return Err(BrokerError::InvalidRecord("compacted topics require a key on every record".into()));
+            }
+        }
+    }
+    Ok(())
+}
+
 fn validate_json_values(raw: &[u8]) -> Result<(), BrokerError> {
     for (pos, _) in records::BatchIter::new(raw) {
         for r in records::decode_batch(&raw[pos..]).map_err(|e| BrokerError::InvalidRecord(e.to_string()))? {

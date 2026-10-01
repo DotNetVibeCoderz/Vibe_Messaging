@@ -490,6 +490,10 @@ class Admin:
         """Moves new data of a topic to ``local``, ``tiered`` or ``diskless`` (offsets never change)."""
         return await self._http.call("POST", f"/v1/topics/{name}/migrate", body={"to": to})
 
+    async def compact(self, name: str) -> Dict[str, Any]:
+        """Compacts a ``cleanup.policy=compact`` topic now (keeps the latest record per key)."""
+        return await self._http.call("POST", f"/v1/topics/{name}/compact", body={})
+
     async def add_partitions(self, name: str, count: int) -> Dict[str, Any]:
         return await self._http.call("POST", f"/v1/topics/{name}/partitions", body={"count": count})
 

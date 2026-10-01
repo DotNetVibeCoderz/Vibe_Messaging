@@ -35,7 +35,7 @@ Legend · Keterangan: ✅ done / selesai · 🟡 partial / sebagian · ⬜ plann
 | Semantics | Transactions and exactly-once (AddPartitionsToTxn, EndTxn, TxnOffsetCommit) · transaksi dan exactly-once | §9.3 | ⬜ |
 | Semantics | KIP-848 incremental group protocol; Kafka share-group protocol (KIP-932 wire APIs) | §9.1–9.2 | ⬜ (share groups exist over HTTP today · share group sudah ada lewat HTTP) |
 | Protocol | Flexible (tagged-field) API versions, SASL/SCRAM, TLS, ACL APIs | §6.2, §15 | ⬜ |
-| Storage | Log compaction (`cleanup.policy=compact`) · compaction log | §7 | ⬜ |
+| Storage | Log compaction (`cleanup.policy=compact`) · compaction log | §7 | ✅ (local topics; merging small cleaned segments still to do · segmen kecil hasil compaction belum digabung) |
 | Storage | Diskless file compaction (merge small objects) and metadata sharding · compaction file diskless dan sharding metadata | §7.3 | 🟡 (retention deletes whole files · retensi menghapus file utuh) |
 | Performance | io_uring / glommio backend on Linux · backend io_uring / glommio di Linux | §6.1 | ⬜ |
 | Performance | Deterministic simulator `bp-sim`, fuzzing, Jepsen · simulator deterministik, fuzzing, Jepsen | §24 | ⬜ |

@@ -99,6 +99,12 @@ public class StreamsTests(BigPipeFixture fx)
             Assert.All(out1, r => Assert.Equal("Warung Kopi (Bandung) 25000", r.Value));
         }
 
+        // Changelogs are compacted topics, as in Kafka Streams.
+        var changelog = await fx.Admin.GetTopicAsync($"{appId}-payments-per-merchant-changelog");
+        Assert.Equal("compact", changelog.EffectiveConfig["cleanup.policy"]);
+        var compaction = await fx.Admin.CompactAsync(changelog.Name);
+        Assert.All(compaction.Partitions, p => Assert.True(p.Compacted || p.Reason is not null));
+
         // A fresh instance restores the count from the changelog and keeps counting.
         await pp.SendAsync(payments, "x", new Payment("M-1", 1m, "SETTLED"));
         await using var app2 = new StreamsApp(Build(), new StreamsConfig { ApplicationId = appId, Bootstrap = fx.Bootstrap });

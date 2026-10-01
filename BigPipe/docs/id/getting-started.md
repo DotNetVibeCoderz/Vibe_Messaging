@@ -40,6 +40,8 @@ echo '{"id":1,"amount":150000}' | bpctl produce orders --key order-1 -H source=c
 bpctl consume orders --from-beginning -n 10
 bpctl consume orders --from-beginning --filter 'this.amount > 100000'
 bpctl topic migrate orders --to tiered                # online; offset tidak berubah
+bpctl topic create users -c cleanup.policy=compact    # simpan record terbaru per key
+bpctl topic compact users                             # compact sekarang (juga berjalan di latar belakang)
 bpctl group list
 ```
 

@@ -63,7 +63,14 @@ pub struct TopicConfig {
     pub cache_bytes: usize,
     /// Server-side schema validation: none | lenient | strict (JSON syntax check in this release).
     pub schema_validation: String,
+    /// `delete`, `compact`, or both (`compact,delete`).
     pub cleanup_policy: String,
+    /// Compaction starts once this share of a partition's sealed bytes has not been cleaned yet.
+    pub min_cleanable_dirty_ratio: f64,
+    /// Records younger than this are never compacted away.
+    pub min_compaction_lag_ms: i64,
+    /// How long a tombstone (null value) survives compaction, so consumers can see the delete.
+    pub delete_retention_ms: i64,
 }
 
 impl Default for TopicConfig {
@@ -82,6 +89,9 @@ impl Default for TopicConfig {
             cache_bytes: 4 * 1024 * 1024,
             schema_validation: "none".into(),
             cleanup_policy: "delete".into(),
+            min_cleanable_dirty_ratio: 0.5,
+            min_compaction_lag_ms: 0,
+            delete_retention_ms: 24 * 3600 * 1000,
         }
     }
 }
@@ -100,6 +110,9 @@ pub const KNOWN_KEYS: &[&str] = &[
     "bigpipe.cache.bytes",
     "bigpipe.schema.validation",
     "cleanup.policy",
+    "min.cleanable.dirty.ratio",
+    "min.compaction.lag.ms",
+    "delete.retention.ms",
 ];
 
 #[derive(Debug, thiserror::Error)]
@@ -138,12 +151,46 @@ impl TopicConfig {
                     }
                     c.schema_validation = v.clone();
                 }
-                "cleanup.policy" => c.cleanup_policy = v.clone(),
+                "cleanup.policy" => {
+                    let mut parts: Vec<&str> = v.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+                    parts.sort_unstable();
+                    parts.dedup();
+                    if parts.is_empty() || parts.iter().any(|p| !matches!(*p, "compact" | "delete")) {
+                        return Err(bad());
+                    }
+                    c.cleanup_policy = parts.join(",");
+                }
+                "min.cleanable.dirty.ratio" => {
+                    let r = v.trim().parse::<f64>().map_err(|_| bad())?;
+                    if !(0.0..=1.0).contains(&r) {
+                        return Err(bad());
+                    }
+                    c.min_cleanable_dirty_ratio = r;
+                }
+                "min.compaction.lag.ms" => c.min_compaction_lag_ms = int()?.max(0),
+                "delete.retention.ms" => c.delete_retention_ms = int()?.max(0),
                 // Unknown keys are kept verbatim (Kafka tooling sets many we do not act on).
                 _ => {}
             }
         }
+        if c.compact() && c.mode != StorageMode::Local {
+            // Compaction rewrites segments on local disk; tiered and diskless data is immutable.
+            return Err(ConfigError {
+                key: "cleanup.policy".into(),
+                value: format!("{} (compaction needs bigpipe.storage.mode=local, not {})", c.cleanup_policy, c.mode.as_str()),
+            });
+        }
         Ok(c)
+    }
+
+    /// True when the topic keeps only the latest record per key.
+    pub fn compact(&self) -> bool {
+        self.cleanup_policy.split(',').any(|p| p == "compact")
+    }
+
+    /// True when time and size retention delete old segments.
+    pub fn delete(&self) -> bool {
+        self.cleanup_policy.split(',').any(|p| p == "delete")
     }
 
     /// Effective value of a key as a string (for DescribeConfigs / admin API).
@@ -164,6 +211,9 @@ impl TopicConfig {
             "bigpipe.cache.bytes" => self.cache_bytes.to_string(),
             "bigpipe.schema.validation" => self.schema_validation.clone(),
             "cleanup.policy" => self.cleanup_policy.clone(),
+            "min.cleanable.dirty.ratio" => self.min_cleanable_dirty_ratio.to_string(),
+            "min.compaction.lag.ms" => self.min_compaction_lag_ms.to_string(),
+            "delete.retention.ms" => self.delete_retention_ms.to_string(),
             _ => return None,
         })
     }
@@ -184,5 +234,23 @@ mod tests {
         assert_eq!(c.retention_ms, -1);
         m.insert("segment.bytes".into(), "abc".into());
         assert!(TopicConfig::from_map(&m).is_err());
+    }
+
+    #[test]
+    fn cleanup_policy() {
+        let mut m = BTreeMap::new();
+        m.insert("cleanup.policy".into(), "delete, compact".into());
+        let c = TopicConfig::from_map(&m).unwrap();
+        assert_eq!(c.cleanup_policy, "compact,delete");
+        assert!(c.compact() && c.delete());
+        m.insert("cleanup.policy".into(), "compact".into());
+        let c = TopicConfig::from_map(&m).unwrap();
+        assert!(c.compact() && !c.delete());
+        m.insert("cleanup.policy".into(), "shred".into());
+        assert!(TopicConfig::from_map(&m).is_err());
+        m.insert("cleanup.policy".into(), "compact".into());
+        m.insert("bigpipe.storage.mode".into(), "diskless".into());
+        let e = TopicConfig::from_map(&m).unwrap_err();
+        assert!(e.value.contains("needs bigpipe.storage.mode=local"), "{e}");
     }
 }

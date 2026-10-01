@@ -23,6 +23,7 @@ SDK berbasis HTTP menerima `bootstrap: "localhost:9092"` ala Kafka, lalu memakai
 | Share group | `ShareConsumerBuilder<K,V>` | `ShareConsumer` | `ShareConsumer` | `NewShareConsumer` | `ShareConsumer.builder()` |
 | Stream SSE dengan filter | `BigPipeHttpClient.StreamAsync` | `stream()` | `stream()` | `Stream()` | `BigPipeStream.subscribe` |
 | Admin | `BigPipeAdminClient` | `Admin` | `Admin` | `NewAdmin` | `Admin` |
+| Compact topic | `CompactAsync` | `compact()` | `compact()` | `Compact()` | `compact()` |
 
 ## .NET
 
@@ -92,6 +93,8 @@ public sealed class OrderHandler : IBigPipeHandler<string, Order>
     public Task HandleAsync(ConsumeContext<string, Order> ctx, CancellationToken ct) { /* ... */ return Task.CompletedTask; }
 }
 ```
+
+`KafkaAdminClient` membuat topic lewat protokol Kafka hanya dengan alamat bootstrap (misalnya `new NewTopic("users", 6, new Dictionary<string, string> { ["cleanup.policy"] = "compact" })`), terhadap BigPipe maupun Apache Kafka.
 
 **Schema Registry**
 

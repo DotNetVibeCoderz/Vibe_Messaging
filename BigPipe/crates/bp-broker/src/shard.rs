@@ -15,8 +15,9 @@ use std::time::Duration;
 
 use bp_protocol::records::BatchSetInfo;
 use bp_storage::diskless::FileRefs;
+use bp_storage::compact::{CompactionJob, CompactionResult};
 use bp_storage::partition::{Maintenance, PartitionInfo};
-use bp_storage::{AppendResult, ObjectStorage, Partition, ReadPlan, StorageError, TopicConfig};
+use bp_storage::{AppendResult, CompactionStats, ObjectStorage, Partition, ReadPlan, StorageError, TopicConfig};
 use bytes::{Bytes, BytesMut};
 use tokio::sync::{mpsc, oneshot, watch};
 
@@ -45,6 +46,10 @@ pub enum ShardCmd {
     OffsetForTime { key: TpKey, ts: i64, reply: Reply<Option<(i64, i64)>> },
     Info { key: TpKey, reply: Reply<PartitionInfo> },
     Uploaded { key: TpKey, base: i64, object_key: String },
+    /// Compact now (ignoring the dirty ratio). `None` when there is nothing to compact.
+    Compact { key: TpKey, reply: Reply<Option<CompactionStats>> },
+    /// A compaction job finished on a blocking thread.
+    Compacted { key: TpKey, result: Result<CompactionResult, StorageError>, replies: Vec<Reply<Option<CompactionStats>>> },
     Flush { reply: oneshot::Sender<()> },
     Shutdown { reply: oneshot::Sender<()> },
 }
@@ -59,6 +64,14 @@ impl ShardHandle {
     pub fn send(&self, cmd: ShardCmd) {
         // A closed shard only happens during shutdown; callers then observe a dropped reply.
         let _ = self.tx.send(cmd);
+    }
+
+    /// Sends the command now and returns the receiver for its reply. Use this when commands
+    /// must reach the shard in a specific order (pipelined produce requests).
+    pub fn request<T>(&self, make: impl FnOnce(Reply<T>) -> ShardCmd) -> oneshot::Receiver<Result<T, StorageError>> {
+        let (tx, rx) = oneshot::channel();
+        self.send(make(tx));
+        rx
     }
 
     pub async fn call<T>(&self, make: impl FnOnce(Reply<T>) -> ShardCmd) -> Result<T, StorageError> {
@@ -91,6 +104,8 @@ struct Shard {
     refs: Arc<FileRefs>,
     metrics: Arc<Metrics>,
     uploading: std::collections::HashSet<(TpKey, i64)>,
+    /// Forced compactions requested while a job was already running on that partition.
+    compact_waiters: HashMap<TpKey, Vec<Reply<Option<CompactionStats>>>>,
 }
 
 pub fn spawn_shards(n: usize, store: Arc<ObjectStorage>, refs: Arc<FileRefs>, metrics: Arc<Metrics>) -> Vec<ShardHandle> {
@@ -114,6 +129,7 @@ pub fn spawn_shards(n: usize, store: Arc<ObjectStorage>, refs: Arc<FileRefs>, me
                         refs,
                         metrics,
                         uploading: Default::default(),
+                        compact_waiters: HashMap::new(),
                     };
                     local.block_on(&rt, shard.run(rx));
                 })
@@ -241,6 +257,44 @@ impl Shard {
                         }
                     }
                 }
+                ShardCmd::Compact { key, reply } => match self.parts.get(&key) {
+                    // A background job is running: run the forced one right after it.
+                    Some(o) if o.log.is_compacting() => self.compact_waiters.entry(key).or_default().push(reply),
+                    Some(_) => self.start_forced_compaction(key, vec![reply]),
+                    None => {
+                        let _ = reply.send(Err(unknown(&key)));
+                    }
+                },
+                ShardCmd::Compacted { key, result, replies } => {
+                    let r = match self.parts.get_mut(&key) {
+                        Some(o) => o.log.apply_compaction(result),
+                        None => Err(unknown(&key)),
+                    };
+                    match &r {
+                        Ok(st) => {
+                            self.metrics.compactions_total.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                            self.metrics
+                                .compaction_removed_records_total
+                                .fetch_add(st.records_before.saturating_sub(st.records_after), std::sync::atomic::Ordering::Relaxed);
+                            tracing::info!(
+                                shard = self.id, topic = %key.0, partition = key.1, segments = st.segments,
+                                records_before = st.records_before, records_after = st.records_after,
+                                bytes_before = st.bytes_before, bytes_after = st.bytes_after, ms = st.duration_ms,
+                                "compacted"
+                            );
+                        }
+                        Err(e) => tracing::warn!(shard = self.id, topic = %key.0, partition = key.1, error = %e, "compaction failed"),
+                    }
+                    for reply in replies {
+                        let _ = reply.send(match &r {
+                            Ok(st) => Ok(Some(st.clone())),
+                            Err(e) => Err(StorageError::Corrupt(e.to_string())),
+                        });
+                    }
+                    if let Some(waiters) = self.compact_waiters.remove(&key) {
+                        self.start_forced_compaction(key, waiters);
+                    }
+                }
                 ShardCmd::Flush { reply } => {
                     for o in self.parts.values_mut() {
                         let _ = o.log.flush();
@@ -290,6 +344,33 @@ impl Shard {
             match o.log.maintenance(now) {
                 Ok(m) => self.apply_maintenance(&key, m),
                 Err(e) => tracing::warn!(shard = self.id, topic = %key.0, partition = key.1, error = %e, "maintenance failed"),
+            }
+            if let Some(job) = self.parts.get_mut(&key).and_then(|o| o.log.compaction_job(now, false)) {
+                self.spawn_compaction(key, job, Vec::new());
+            }
+        }
+    }
+
+    /// Runs a compaction job on the blocking pool; the result comes back as a command so the
+    /// swap happens on this shard, in order with appends and reads.
+    fn spawn_compaction(&self, key: TpKey, job: CompactionJob, replies: Vec<Reply<Option<CompactionStats>>>) {
+        let tx = self.self_tx.clone();
+        tokio::task::spawn_local(async move {
+            let result = tokio::task::spawn_blocking(move || bp_storage::compact::run(&job))
+                .await
+                .unwrap_or_else(|e| Err(StorageError::Io(std::io::Error::other(format!("compaction task: {e}")))));
+            let _ = tx.send(ShardCmd::Compacted { key, result, replies });
+        });
+    }
+
+    fn start_forced_compaction(&mut self, key: TpKey, replies: Vec<Reply<Option<CompactionStats>>>) {
+        let job = self.parts.get_mut(&key).and_then(|o| o.log.compaction_job(bp_storage::partition::now_ms(), true));
+        match job {
+            Some(job) => self.spawn_compaction(key, job, replies),
+            None => {
+                for r in replies {
+                    let _ = r.send(Ok(None));
+                }
             }
         }
     }

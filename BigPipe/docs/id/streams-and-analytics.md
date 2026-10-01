@@ -32,7 +32,7 @@ var store = app.Store<Windowed<string>, MerchantTotals>("merchant-totals");   //
 
 - **Operator:** `Filter`/`FilterNot`, `Map`, `MapValues`, `FlatMap`, `FlatMapValues`, `SelectKey`, `Peek`, `Branch`, `Merge`, `GroupByKey`/`GroupBy`, `Count`, `Reduce`, `Aggregate`, `Join`/`LeftJoin` stream–tabel (tabel dibuat dengan `builder.Table<K,V>(topic)`), `ToStream`, `To`.
 - **Window:** `TumblingWindow`, `HoppingWindow`, `SlidingWindow`, dan `SessionWindow`, masing-masing dengan grace period untuk record yang terlambat.
-- **State:** `Stores.Persistent` menyimpan state di memori dan menulis setiap perubahan ke `<app>-<store>-changelog`. Saat restart, store dibangun ulang dari topic tersebut. `Stores.InMemory` tidak memakai changelog.
+- **State:** `Stores.Persistent` menyimpan state di memori dan menulis setiap perubahan ke `<app>-<store>-changelog`. Topic ini di-compact (`cleanup.policy=compact`, dibuat saat aplikasi mulai), jadi nilai terbaru per key disimpan tanpa kedaluwarsa. Saat restart, store dibangun ulang dari topic tersebut. `Stores.InMemory` tidak memakai changelog.
 - **Skalabilitas:** partisi dibagi ke semua instance dengan `ApplicationId` yang sama lewat consumer group biasa.
 
 ## BigPipe.Analytics

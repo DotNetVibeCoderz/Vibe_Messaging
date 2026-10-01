@@ -32,7 +32,7 @@ Set at creation (`bpctl topic create t -c key=value`, `"config":{}` in the admin
 | Key | Default | Meaning |
 |---|---|---|
 | `bigpipe.storage.mode` | `local` | `local`, `tiered` or `diskless`; changing it performs an online migration |
-| `retention.ms` / `retention.bytes` | 7 days / `-1` | whole segments older or beyond the size are deleted (`-1` = unlimited) |
+| `retention.ms` / `retention.bytes` | 7 days / `-1` | whole segments older or beyond the size are deleted (`-1` = unlimited). Applies only when `cleanup.policy` includes `delete` |
 | `segment.bytes` / `segment.ms` | 256 MiB / 7 days | when the active segment is rolled |
 | `local.retention.ms` | 1 hour | tiered: how long uploaded segments stay on local disk |
 | `bigpipe.durability` | `flush` | `flush`: ack after the OS page cache (Kafka's default); `fsync`: sync before acking |
@@ -40,7 +40,10 @@ Set at creation (`bpctl topic create t -c key=value`, `"config":{}` in the admin
 | `max.message.bytes` | 8 MiB | largest record batch |
 | `bigpipe.cache.bytes` | 4 MiB | per-partition read cache for recent data |
 | `bigpipe.schema.validation` | `none` | `strict`: reject records whose value is not valid JSON; `lenient` is accepted but does not check yet |
-| `cleanup.policy` | `delete` | stored for compatibility; compaction is on the roadmap |
+| `cleanup.policy` | `delete` | `delete`, `compact` (keep the latest record per key; `local` topics only) or `compact,delete` |
+| `min.cleanable.dirty.ratio` | 0.5 | compact once this share of the sealed log has not been cleaned yet |
+| `min.compaction.lag.ms` | 0 | records younger than this are never compacted |
+| `delete.retention.ms` | 24 hours | how long a tombstone (null value) survives compaction |
 
 ## Object storage
 

@@ -112,6 +112,7 @@ Jika `admin_api_key` diatur, setiap panggilan membutuhkan `Authorization: Bearer
 | `PATCH /v1/topics/{t}/config` | `{"config":{"retention.ms":"86400000","flush.ms":null}}` (`null` mengembalikan ke default) |
 | `POST /v1/topics/{t}/partitions` | `{"count":12}`: tambah menjadi 12 partisi |
 | `POST /v1/topics/{t}/migrate` | `{"to":"diskless"}`: migrasi penyimpanan online; mengembalikan `switch_offsets` |
+| `POST /v1/topics/{t}/compact` | compact topic `cleanup.policy=compact` sekarang; mengembalikan jumlah record dan byte sebelum/sesudah per partisi |
 | `GET /v1/topics/{t}/messages` | penjelajah pesan: `?partition=&offset=&limit=&filter=` |
 | `GET /v1/groups` · `GET /v1/groups/{g}` · `DELETE /v1/groups/{g}` | daftar, detail (member, offset ter-commit, lag), hapus |
 | `POST /v1/groups/{g}/reset` | `{"topic","to":"earliest\|latest\|offset","offset":0,"partitions":[0,1]}`; group harus kosong |
@@ -122,7 +123,7 @@ Jika `admin_api_key` diatur, setiap panggilan membutuhkan `Authorization: Bearer
 
 ## Metrik (9645)
 
-`GET /metrics` mengembalikan teks OpenMetrics: `bp_produce_records_total`, `bp_produce_bytes_total`, `bp_fetch_records_total`, `bp_fetch_bytes_total`, `bp_requests_total`, `bp_request_errors_total`, `bp_http_requests_total`, `bp_connections_open`, `bp_connections_total`, `bp_produce_latency_seconds`, `bp_fetch_latency_seconds` (histogram), `bp_diskless_files_total`, `bp_diskless_bytes_total`, `bp_diskless_put_latency_seconds`, `bp_diskless_files_referenced`, `bp_tiered_uploads_total`, `bp_object_cache_bytes`, `bp_group_rebalances_total`, dan `bp_topics`.
+`GET /metrics` mengembalikan teks OpenMetrics: `bp_produce_records_total`, `bp_produce_bytes_total`, `bp_fetch_records_total`, `bp_fetch_bytes_total`, `bp_requests_total`, `bp_request_errors_total`, `bp_http_requests_total`, `bp_connections_open`, `bp_connections_total`, `bp_produce_latency_seconds`, `bp_fetch_latency_seconds` (histogram), `bp_diskless_files_total`, `bp_diskless_bytes_total`, `bp_diskless_put_latency_seconds`, `bp_diskless_files_referenced`, `bp_tiered_uploads_total`, `bp_object_cache_bytes`, `bp_group_rebalances_total`, `bp_compactions_total`, `bp_compaction_removed_records_total`, dan `bp_topics`.
 
 ## Gateway AdminApi (9650)
 

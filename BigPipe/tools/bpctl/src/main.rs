@@ -135,6 +135,10 @@ enum TopicCmd {
         name: String,
         count: i32,
     },
+    /// Compact a cleanup.policy=compact topic now (keeps the latest record per key).
+    Compact {
+        name: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -290,6 +294,24 @@ async fn main() -> anyhow::Result<()> {
                     print(&v)
                 } else {
                     println!("{name}: {} -> {} (new data only; existing offsets unchanged)", v["from"].as_str().unwrap_or("?"), v["to"].as_str().unwrap_or("?"));
+                }
+            }
+            TopicCmd::Compact { name } => {
+                let v = api.post(&format!("/v1/topics/{name}/compact"), json!({})).await?;
+                if cli.json {
+                    print(&v)
+                } else {
+                    for p in v["partitions"].as_array().into_iter().flatten() {
+                        let id = p["partition"].as_i64().unwrap_or(-1);
+                        if p["compacted"].as_bool() == Some(true) {
+                            println!(
+                                "{name}-{id}: {} -> {} records, {} -> {} bytes in {} ms",
+                                p["records_before"], p["records_after"], p["bytes_before"], p["bytes_after"], p["duration_ms"]
+                            );
+                        } else {
+                            println!("{name}-{id}: skipped ({})", p["reason"].as_str().unwrap_or("nothing to do"));
+                        }
+                    }
                 }
             }
             TopicCmd::AddPartitions { name, count } => {

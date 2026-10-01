@@ -5,9 +5,11 @@
 //! - [`read`]: executes read plans outside the shard (files, object storage, memory).
 //! - [`objstore::ObjectStorage`]: S3 / GCS / Azure Blob / MinIO / filesystem with an LRU cache.
 //! - [`diskless`]: diskless object format and reference counting.
+//! - [`compact`]: log compaction for `cleanup.policy=compact` topics.
 //!
 //! Dibuat oleh Gravicode Studios dipimpin oleh Kang Fadhil.
 
+pub mod compact;
 pub mod config;
 pub mod diskless;
 pub mod objstore;
@@ -16,7 +18,7 @@ pub mod read;
 
 pub use config::{Durability, StorageMode, TopicConfig};
 pub use objstore::ObjectStorage;
-pub use partition::{AppendResult, Partition, PartitionInfo};
+pub use partition::{AppendResult, CompactionStats, Partition, PartitionInfo};
 pub use read::{Chunk, ReadPlan};
 
 #[derive(Debug, thiserror::Error)]

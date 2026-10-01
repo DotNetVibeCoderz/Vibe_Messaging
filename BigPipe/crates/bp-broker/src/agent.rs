@@ -34,11 +34,22 @@ pub struct AgentHandle {
 
 impl AgentHandle {
     pub async fn append(&self, key: TpKey, raw: BytesMut, info: BatchSetInfo) -> Result<AppendResult, StorageError> {
+        let rx = self.enqueue(key, raw, info)?;
+        rx.await.map_err(|_| StorageError::Io(std::io::Error::other("diskless agent dropped request")))?
+    }
+
+    /// Queues the append now (in call order) and returns the receiver for its result.
+    pub fn enqueue(
+        &self,
+        key: TpKey,
+        raw: BytesMut,
+        info: BatchSetInfo,
+    ) -> Result<oneshot::Receiver<Result<AppendResult, StorageError>>, StorageError> {
         let (reply, rx) = oneshot::channel();
         self.tx
             .send(AgentRequest { key, raw, info, reply })
             .map_err(|_| StorageError::Io(std::io::Error::other("diskless agent stopped")))?;
-        rx.await.map_err(|_| StorageError::Io(std::io::Error::other("diskless agent dropped request")))?
+        Ok(rx)
     }
 }
 

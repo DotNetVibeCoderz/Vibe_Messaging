@@ -1,8 +1,11 @@
 //! Kafka wire protocol server (port 9092).
 //!
 //! Requests on a connection are handled concurrently but responses are written strictly in
-//! request order, as Kafka clients require. Fetch responses are written as a list of chunks so
-//! record data is never copied into the response buffer.
+//! request order, as Kafka clients require. Produce requests are the exception to the
+//! concurrency: their appends are enqueued to the shards in arrival order (only the wait for the
+//! result runs concurrently), because idempotent producers with several requests in flight
+//! depend on that order. Fetch responses are written as a list of chunks so record data is
+//! never copied into the response buffer.
 
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
@@ -66,7 +69,8 @@ async fn connection(broker: Arc<Broker>, sock: TcpStream, peer: SocketAddr) -> s
         let mut frame = BytesMut::zeroed(size as usize);
         rd.read_exact(&mut frame).await?;
         broker.metrics.requests_total.fetch_add(1, Relaxed);
-        let fut = handle(broker.clone(), frame, host.clone());
+        let is_produce = frame.len() >= 2 && i16::from_be_bytes([frame[0], frame[1]]) == api::PRODUCE;
+        let fut = if is_produce { produce_in_order(broker.clone(), frame).await } else { handle(broker.clone(), frame, host.clone()) };
         if tx.send(tokio::spawn(fut)).await.is_err() {
             break;
         }
@@ -163,62 +167,10 @@ async fn dispatch(b: &Arc<Broker>, h: &RequestHeader, req: Request, e: &mut Enco
             .encode(e, v);
         }
         Request::Produce(r) => {
-            if r.transactional_id.is_some() {
-                // Transactions are on the roadmap; reject clearly instead of corrupting semantics.
-                let out: Vec<_> = r
-                    .topics
-                    .iter()
-                    .map(|t| {
-                        (t.name.clone(), t.partitions.iter().map(|p| produce_err(p.index, error::TRANSACTIONAL_ID_AUTHORIZATION_FAILED)).collect())
-                    })
-                    .collect();
-                m::encode_produce(e, v, &out);
-                return r.acks != 0;
-            }
-            let mut futs = Vec::new();
-            for t in r.topics {
-                let meta = b.ensure_topic(&t.name).await;
-                for p in t.partitions {
-                    let b = b.clone();
-                    let meta = meta.as_ref().ok().cloned();
-                    let name = t.name.clone();
-                    futs.push(async move {
-                        let resp = match (meta, p.records) {
-                            (None, _) => produce_err(p.index, error::UNKNOWN_TOPIC_OR_PARTITION),
-                            (Some(_), None) => produce_err(p.index, error::CORRUPT_MESSAGE),
-                            (Some(meta), Some(raw)) => match b.produce(&meta, p.index, raw).await {
-                                Ok(a) => m::ProducePartitionResponse {
-                                    index: p.index,
-                                    error_code: error::NONE,
-                                    base_offset: a.base_offset,
-                                    log_start_offset: a.log_start,
-                                    error_message: None,
-                                },
-                                Err(err) => {
-                                    tracing::debug!(topic = %name, partition = p.index, error = %err, "produce failed");
-                                    m::ProducePartitionResponse {
-                                        index: p.index,
-                                        error_code: err.kafka_code(),
-                                        base_offset: -1,
-                                        log_start_offset: -1,
-                                        error_message: Some(err.to_string()),
-                                    }
-                                }
-                            },
-                        };
-                        (name, resp)
-                    });
-                }
-            }
-            let results = futures::future::join_all(futs).await;
-            let mut grouped: Vec<(String, Vec<m::ProducePartitionResponse>)> = Vec::new();
-            for (name, resp) in results {
-                match grouped.iter_mut().find(|(n, _)| *n == name) {
-                    Some((_, v)) => v.push(resp),
-                    None => grouped.push((name, vec![resp])),
-                }
-            }
-            if r.acks == 0 {
+            let acks = r.acks;
+            let work = enqueue_produce(b, r).await;
+            let grouped = complete_produce(b, work).await;
+            if acks == 0 {
                 return false;
             }
             m::encode_produce(e, v, &grouped);
@@ -424,8 +376,91 @@ async fn dispatch(b: &Arc<Broker>, h: &RequestHeader, req: Request, e: &mut Enco
     true
 }
 
-fn produce_err(index: i32, code: i16) -> m::ProducePartitionResponse {
-    m::ProducePartitionResponse { index, error_code: code, base_offset: -1, log_start_offset: -1, error_message: None }
+/// Decodes a produce request and enqueues its appends before the connection reads the next
+/// request; returns the future that waits for the results and encodes the response.
+async fn produce_in_order(broker: Arc<Broker>, frame: BytesMut) -> Pending {
+    let mut d = Decoder::new(frame);
+    let decoded = m::decode_header(&mut d).ok().filter(|h| m::version_supported(h.api_key, h.api_version)).and_then(|h| {
+        match Request::decode(&h, &mut d) {
+            Ok(Request::Produce(r)) => Some((h, r)),
+            _ => None,
+        }
+    });
+    let Some((h, r)) = decoded else {
+        broker.metrics.request_errors_total.fetch_add(1, Relaxed);
+        tracing::warn!("malformed produce request");
+        return Box::pin(async { None });
+    };
+    let acks = r.acks;
+    let work = enqueue_produce(&broker, r).await;
+    Box::pin(async move {
+        let grouped = complete_produce(&broker, work).await;
+        if acks == 0 {
+            return None;
+        }
+        let mut e = m::response_encoder(h.correlation_id);
+        m::encode_produce(&mut e, h.api_version, &grouped);
+        Some(e.finish_frame())
+    })
+}
+
+/// One partition of a produce request: enqueued, or already answered with an error.
+type ProduceWork = Vec<(String, i32, Result<crate::broker::PendingAppend, BrokerError>)>;
+
+async fn enqueue_produce(b: &Arc<Broker>, r: m::ProduceRequest) -> ProduceWork {
+    let mut work = Vec::new();
+    for t in r.topics {
+        // Transactions are on the roadmap; reject them clearly instead of corrupting semantics.
+        let meta = if r.transactional_id.is_some() { Err(BrokerError::Transactional) } else { b.ensure_topic(&t.name).await };
+        for p in t.partitions {
+            let pending = match (&meta, p.records) {
+                (Err(BrokerError::Transactional), _) => Err(BrokerError::Transactional),
+                (Err(_), _) => Err(BrokerError::UnknownTopic(t.name.clone())),
+                (Ok(_), None) => Err(BrokerError::InvalidRecord("missing records".into())),
+                (Ok(meta), Some(raw)) => b.produce_enqueue(meta, p.index, raw),
+            };
+            work.push((t.name.clone(), p.index, pending));
+        }
+    }
+    work
+}
+
+async fn complete_produce(b: &Arc<Broker>, work: ProduceWork) -> Vec<(String, Vec<m::ProducePartitionResponse>)> {
+    let results = futures::future::join_all(work.into_iter().map(|(name, index, pending)| async move {
+        let r = match pending {
+            Ok(p) => b.finish_append(p).await,
+            Err(e) => Err(e),
+        };
+        let resp = match r {
+            Ok(a) => m::ProducePartitionResponse {
+                index,
+                error_code: error::NONE,
+                base_offset: a.base_offset,
+                log_start_offset: a.log_start,
+                error_message: None,
+            },
+            Err(err) => {
+                tracing::debug!(topic = %name, partition = index, error = %err, "produce failed");
+                m::ProducePartitionResponse {
+                    index,
+                    error_code: err.kafka_code(),
+                    base_offset: -1,
+                    log_start_offset: -1,
+                    error_message: Some(err.to_string()),
+                }
+            }
+        };
+        (name, resp)
+    }))
+    .await;
+    let mut grouped: Vec<(String, Vec<m::ProducePartitionResponse>)> = Vec::new();
+    for (name, resp) in results {
+        match grouped.iter_mut().find(|(n, _)| *n == name) {
+            Some((_, v)) => v.push(resp),
+            None => grouped.push((name, vec![resp])),
+        }
+    }
+    grouped
 }
 
 async fn fetch(b: &Arc<Broker>, r: m::FetchRequest, e: &mut Encoder, v: i16) {
